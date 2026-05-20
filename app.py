@@ -77,6 +77,7 @@ st.sidebar.markdown("- [🛍️ メルカリShops](https://mercari-shops.com/sel
 st.sidebar.markdown("- [📚 日本の古本屋](https://www.kosho.or.jp/koshoadmin/)")
 st.sidebar.markdown("- [🔨 ヤフオク!](https://auctions.yahoo.co.jp/my)")
 st.sidebar.markdown("- [🔴 メルカリ](https://jp.mercari.com/)")
+st.sidebar.markdown("- [✉️ Webメール (注文通知)](https://webmail.muumuu-domain.com/mail/INBOX)")
 st.sidebar.markdown("- [🏷️ プライスター](https://jp3.pricetar.com/seller)")
 st.sidebar.markdown("- [🖨️ ラベル屋さん](https://www.labelyasan.com/)")
 st.sidebar.markdown("- [🔍 駿河屋あんしん買取](https://www.suruga-ya.jp/kaitori/search_buy?category=&search_word=)")
