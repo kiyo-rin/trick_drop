@@ -83,6 +83,10 @@ st.sidebar.markdown("- [🖨️ ラベル屋さん](https://www.labelyasan.com/)
 st.sidebar.markdown("- [🔍 駿河屋あんしん買取](https://www.suruga-ya.jp/kaitori/search_buy?category=&search_word=)")
 
 st.sidebar.markdown("---")
+st.sidebar.markdown("**🏦 銀行・財務**")
+st.sidebar.markdown("- [🏧 GMOあおぞらネット銀行](https://sso.gmo-aozora.com/b2c/login?service=https%3A%2F%2Fbank.gmo-aozora.com%2Fbank)")
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("**🛒 仕入れ先**")
 st.sidebar.markdown("- [📖 八木書店バーゲンブック](https://www.books-yagi.co.jp/bb/)")
 st.sidebar.markdown("- [🐟 魚住書店](https://www.uozumishoten.jp/cart.cgi)")
