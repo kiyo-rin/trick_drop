@@ -158,6 +158,7 @@ st.sidebar.markdown("- [📦 Amazon Seller Central](https://sellercentral.amazon
 st.sidebar.markdown("- [🛍️ メルカリShops](https://mercari-shops.com/seller/shops)")
 st.sidebar.markdown("- [📚 日本の古本屋](https://www.kosho.or.jp/koshoadmin/)")
 st.sidebar.markdown("- [🔨 ヤフオク!](https://auctions.yahoo.co.jp/my)")
+st.sidebar.markdown("- [⚙️ AppTool](https://apptool.jp/mypage)")
 st.sidebar.markdown("- [🔴 メルカリ](https://jp.mercari.com/)")
 st.sidebar.markdown("- [📊 Amazon KDP レポート](https://kdpreports.amazon.co.jp/dashboard)")
 st.sidebar.markdown("- [🏷️ プライスター](https://jp3.pricetar.com/seller)")
