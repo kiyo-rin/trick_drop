@@ -30,16 +30,17 @@ def get_unread_count():
             unread_ids = response[0].split()
             count = len(unread_ids)
             mail.logout()
-            return count
-        return 0
+            return count, None
+        return 0, None
     except Exception as e:
-        print(f"Mail check error: {e}")
-        return None # エラー時はNoneを返す
+        return None, str(e)
 
 # 未読数の取得を実行
-unread_count = get_unread_count()
+unread_count, error_msg = get_unread_count()
 unread_badge = ""
-if unread_count is not None:
+if error_msg:
+    st.sidebar.error(f"メール連携エラー: {error_msg}")
+elif unread_count is not None:
     if unread_count > 0:
         unread_badge = f" 🔴 **{unread_count}**"
     else:
