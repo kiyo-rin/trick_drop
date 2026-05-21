@@ -356,7 +356,50 @@ elif page == "📚 YGシステム (無在庫)":
         
     if not orders_df.empty:
         st.success(f"最新の注文データを {len(orders_df)} 件 自動取得しました！")
-        st.dataframe(orders_df, use_container_width=True, hide_index=True)
+        
+        import os
+        import json
+        STATUS_FILE = "yg_order_status.json"
+        
+        status_dict = {}
+        if os.path.exists(STATUS_FILE):
+            with open(STATUS_FILE, "r", encoding="utf-8") as f:
+                try:
+                    status_dict = json.load(f)
+                except:
+                    pass
+                    
+        # チェック状態を保持するための列を用意
+        orders_df["_id"] = orders_df["受信日時"] + "_" + orders_df["商品名"]
+        orders_df["✅ 発注済"] = orders_df["_id"].map(lambda x: status_dict.get(x, False))
+        
+        # 画面表示用に並び替え
+        view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "商品名"]
+        view_df = orders_df[view_cols]
+        
+        st.markdown("👇 **チェックボックスをクリックすると、自動で「発注済み」として記録されます💡**")
+        edited_df = st.data_editor(
+            view_df,
+            column_config={
+                "✅ 発注済": st.column_config.CheckboxColumn("✅ 発注済", help="発注が終わったらチェック", default=False),
+                "受信日時": st.column_config.TextColumn("受信日時", disabled=True),
+                "プラットフォーム": st.column_config.TextColumn("プラットフォーム", disabled=True),
+                "商品名": st.column_config.TextColumn("商品名", disabled=True),
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+        
+        # 変更があればJSONに保存
+        new_status_dict = status_dict.copy()
+        for index, row in edited_df.iterrows():
+            row_id = f"{row['受信日時']}_{row['商品名']}"
+            new_status_dict[row_id] = row['✅ 発注済']
+            
+        if new_status_dict != status_dict:
+            with open(STATUS_FILE, "w", encoding="utf-8") as f:
+                json.dump(new_status_dict, f, ensure_ascii=False, indent=2)
+                
     else:
         st.info("直近100件のメールに新しい注文は見つかりませんでした。")
         
