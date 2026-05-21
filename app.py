@@ -94,9 +94,7 @@ st.sidebar.markdown("- [✉️ 独自ドメイン (メイン)](https://webmail.m
 st.sidebar.markdown("- [📧 Gmail (きよた書店)](https://mail.google.com/mail/u/0/)")
 st.sidebar.markdown("- [📧 Gmail (清隆)](https://mail.google.com/mail/u/1/)")
 st.sidebar.markdown("- [📧 Gmail (AIカーリーズ)](https://mail.google.com/mail/u/4/)")
-st.sidebar.markdown("- [📧 Gmail (SNS カーリーズ)](https://mail.google.com/mail/u/3/)")
-st.sidebar.markdown("- [📧 Gmail (ホビーコレクト)](https://mail.google.com/mail/u/2/)")
-st.sidebar.markdown("- [📮 Yahoo!メール](https://mail.yahoo.co.jp/)")
+st.sidebar.markdown("- [ Yahoo!メール](https://mail.yahoo.co.jp/)")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🏦 銀行・財務**")
