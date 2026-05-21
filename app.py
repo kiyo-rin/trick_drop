@@ -143,7 +143,7 @@ st.markdown("""
 st.sidebar.title("TRICK DROP ⚡️")
 st.sidebar.markdown("**NAVIGATION**")
 page = st.sidebar.radio("", [
-    "🏢 統合財務 (CFO)", 
+    "🚨 司令室 (メイン)", 
     "📚 YGシステム (無在庫)", 
     "📖 国内有在庫 (千葉・神田)", 
     "🌐 B28コマンド (越境プレ値)"
@@ -209,33 +209,61 @@ def update_modern_layout(fig):
     )
     return fig
 
-if page == "🏢 統合財務 (CFO)":
-    st.markdown('<div class="main-header">🏢 統合財務総括 (CFO Dashboard)</div>', unsafe_allow_html=True)
+if page == "🚨 司令室 (メイン)":
+    st.markdown('<div class="main-header">🚨 司令室 (Command Center)</div>', unsafe_allow_html=True)
     st.markdown('<div class="slogan">TRICK DROP — 「ありえない成功を生み出す、仕掛けられた自販機」 ⚡️🎰</div>', unsafe_allow_html=True)
     
-    # KPI
-    col1, col2, col3 = st.columns(3)
-    col1.metric("今月の総売上", "¥12,500,000", "+15%")
-    col2.metric("総粗利益", "¥6,800,000", "+18%")
-    col3.metric("注文件数", "1,245件", "+5%")
+    # --- 1. 横断検索ツール ---
+    st.markdown("### 🔍 最速！一括横断検索")
+    search_query = st.text_input("本・商品のタイトルやISBNを入力", placeholder="例: 9784001111111 (Enterキーを押すと各検索ボタンが出現します)")
     
-    st.markdown("### 事業別 売上比率")
-    pie_data = pd.DataFrame({
-        "事業": ["YGシステム (無在庫)", "国内有在庫 (千葉・神田)", "B28コマンド (越境プレ値)"],
-        "売上": [3500000, 1500000, 7500000]
-    })
-    fig = px.pie(pie_data, names="事業", values="売上", hole=0.5, color="事業",
-                 color_discrete_map={
-                     "YGシステム (無在庫)": "#3B82F6", 
-                     "国内有在庫 (千葉・神田)": "#10B981", 
-                     "B28コマンド (越境プレ値)": "#8B5CF6"
-                 })
-    fig.update_traces(
-        marker=dict(line=dict(color='#FFFFFF', width=2)),
-        pull=[0.02, 0.02, 0.02],
-        hoverinfo="label+percent+name"
-    )
-    st.plotly_chart(update_modern_layout(fig), use_container_width=True)
+    if search_query:
+        import urllib.parse
+        q_url = urllib.parse.quote(search_query)
+        
+        amazon_url = f"https://www.amazon.co.jp/s?k={q_url}"
+        mercari_url = f"https://jp.mercari.com/search?keyword={q_url}"
+        yahoo_url = f"https://auctions.yahoo.co.jp/search/search?p={q_url}"
+        takara_url = f"https://www.kosho.or.jp/products/list.php?mode=search&name={q_url}"
+        
+        st.markdown(f"""
+        <div style="display: flex; gap: 15px; margin-bottom: 30px; flex-wrap: wrap;">
+            <a href="{amazon_url}" target="_blank" style="padding: 10px 20px; background-color: #232F3E; color: white; border-radius: 5px; text-decoration: none; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">📦 Amazon</a>
+            <a href="{mercari_url}" target="_blank" style="padding: 10px 20px; background-color: #E32B36; color: white; border-radius: 5px; text-decoration: none; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">🔴 メルカリ</a>
+            <a href="{yahoo_url}" target="_blank" style="padding: 10px 20px; background-color: #FF0033; color: white; border-radius: 5px; text-decoration: none; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">🔨 ヤフオク</a>
+            <a href="{takara_url}" target="_blank" style="padding: 10px 20px; background-color: #2E8B57; color: white; border-radius: 5px; text-decoration: none; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">📚 日本の古本屋</a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    st.markdown("---")
+    
+    # --- 2. メモと定型文の2段組み ---
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### 📝 保存されるメモ帳")
+        import os
+        MEMO_FILE = "memo.txt"
+        if os.path.exists(MEMO_FILE):
+            with open(MEMO_FILE, "r", encoding="utf-8") as f:
+                default_memo = f.read()
+        else:
+            default_memo = "【今日のTODO】\n・\n\n【仕入れメモ】\n・"
+            
+        new_memo = st.text_area("文字を書いて枠外をクリックすると自動で保存されます💡", value=default_memo, height=300)
+        if new_memo != default_memo:
+            with open(MEMO_FILE, "w", encoding="utf-8") as f:
+                f.write(new_memo)
+                
+    with col2:
+        st.markdown("### 📋 定型文・コピーパッド")
+        st.caption("右上のコピーマーク(❐)をクリックすれば一発でコピーできます。")
+        
+        st.caption("▼ 発送完了メッセージ (顧客用)")
+        st.code("ご購入ありがとうございます！\n本日、商品を発送いたしました。\n到着まで今しばらくお待ちくださいませ。\n引き続きよろしくお願いいたします。", language="text")
+        
+        st.caption("▼ 指示メッセージ (作業スタッフ用)")
+        st.code("お疲れ様です！\n本日のデータを確認し、作業ファイルを更新しました。\n不明点があればチャットでご連絡ください。\nよろしくお願いします。", language="text")
 
 elif page == "📚 YGシステム (無在庫)":
     st.markdown('<div class="main-header">📚 YGシステム (無在庫)</div>', unsafe_allow_html=True)
