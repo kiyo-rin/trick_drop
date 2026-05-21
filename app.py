@@ -93,7 +93,7 @@ st.sidebar.markdown("**✉️ メールボックス**")
 st.sidebar.markdown("- [✉️ 独自ドメイン (メイン)](https://webmail.muumuu-domain.com/mail/INBOX)")
 st.sidebar.markdown("- [📧 Gmail (きよた書店)](https://mail.google.com/mail/u/0/)")
 st.sidebar.markdown("- [📧 Gmail (清隆)](https://mail.google.com/mail/u/1/)")
-st.sidebar.markdown("- [📧 Gmail (AIカーリーズ)](https://mail.google.com/mail/u/4/)")
+st.sidebar.markdown("- [📧 Gmail (AIカーリーズ)](https://mail.google.com/mail/u/2/)")
 st.sidebar.markdown("- [ Yahoo!メール](https://mail.yahoo.co.jp/)")
 
 st.sidebar.markdown("---")
