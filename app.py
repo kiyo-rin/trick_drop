@@ -12,12 +12,21 @@ st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
 
 # 未読メールを取得する関数
 @st.cache_data(ttl=300) # 5分間は結果をキャッシュして再読み込みを高速化
-def get_unread_count():
+def get_unread_count(account_type="muumuu"):
     try:
         # Secretsから情報を取得
-        user = st.secrets["email"]["muumuu_user"]
-        password = st.secrets["email"]["muumuu_pass"]
-        server = st.secrets["email"]["muumuu_server"]
+        if account_type == "muumuu":
+            user = st.secrets["email"]["muumuu_user"]
+            password = st.secrets["email"]["muumuu_pass"]
+            server = st.secrets["email"]["muumuu_server"]
+        elif account_type == "gmail_kiyota":
+            if "gmail_kiyota_user" not in st.secrets["email"]:
+                return None, "Secretsにgmail_kiyota_userが設定されていません"
+            user = st.secrets["email"]["gmail_kiyota_user"]
+            password = st.secrets["email"]["gmail_kiyota_pass"]
+            server = "imap.gmail.com"
+        else:
+            return None, "未対応のアカウントタイプ"
         
         # IMAPサーバーに接続
         mail = imaplib.IMAP4_SSL(server)
@@ -36,15 +45,19 @@ def get_unread_count():
         return None, str(e)
 
 # 未読数の取得を実行
-unread_count, error_msg = get_unread_count()
-unread_badge = ""
-if error_msg:
-    st.sidebar.error(f"メール連携エラー: {error_msg}")
-elif unread_count is not None:
-    if unread_count > 0:
-        unread_badge = f" 🔴 **{unread_count}**"
-    else:
-        unread_badge = " 🟢"
+muumuu_count, muumuu_error = get_unread_count("muumuu")
+muumuu_badge = ""
+if muumuu_error:
+    st.sidebar.error(f"独自ドメイン連携エラー: {muumuu_error}")
+elif muumuu_count is not None:
+    muumuu_badge = f" 🔴 **{muumuu_count}**" if muumuu_count > 0 else " 🟢"
+
+gmail_kiyota_count, gmail_kiyota_error = get_unread_count("gmail_kiyota")
+gmail_kiyota_badge = ""
+if gmail_kiyota_error:
+    st.sidebar.error(f"Gmail(きよた)連携エラー: {gmail_kiyota_error}")
+elif gmail_kiyota_count is not None:
+    gmail_kiyota_badge = f" 🔴 **{gmail_kiyota_count}**" if gmail_kiyota_count > 0 else " 🟢"
 
 # Google自動翻訳を無効化するメタタグを挿入
 st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
@@ -130,8 +143,8 @@ st.sidebar.markdown("- [🏢 三協社](http://book-sankyo.co.jp/)")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**✉️ メールボックス**")
-st.sidebar.markdown(f"- [✉️ 独自ドメイン (メイン)]({f'https://webmail.muumuu-domain.com/mail/INBOX'}){unread_badge}")
-st.sidebar.markdown("- [📧 Gmail (きよた書店)](https://mail.google.com/mail/u/0/)")
+st.sidebar.markdown(f"- [✉️ 独自ドメイン (メイン)]({f'https://webmail.muumuu-domain.com/mail/INBOX'}){muumuu_badge}")
+st.sidebar.markdown(f"- [📧 Gmail (きよた書店)](https://mail.google.com/mail/u/0/){gmail_kiyota_badge}")
 st.sidebar.markdown("- [📧 Gmail (清隆)](https://mail.google.com/mail/u/1/)")
 
 st.sidebar.markdown("- [ Yahoo!メール](https://mail.yahoo.co.jp/)")
