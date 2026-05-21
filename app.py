@@ -25,6 +25,12 @@ def get_unread_count(account_type="muumuu"):
             user = st.secrets["email"]["gmail_kiyota_user"]
             password = st.secrets["email"]["gmail_kiyota_pass"]
             server = "imap.gmail.com"
+        elif account_type == "gmail_kiyotaka":
+            if "gmail_kiyotaka_user" not in st.secrets["email"]:
+                return None, "Secretsにgmail_kiyotaka_userが設定されていません"
+            user = st.secrets["email"]["gmail_kiyotaka_user"]
+            password = st.secrets["email"]["gmail_kiyotaka_pass"]
+            server = "imap.gmail.com"
         else:
             return None, "未対応のアカウントタイプ"
         
@@ -58,6 +64,13 @@ if gmail_kiyota_error:
     st.sidebar.error(f"Gmail(きよた)連携エラー: {gmail_kiyota_error}")
 elif gmail_kiyota_count is not None:
     gmail_kiyota_badge = f" 🔴 **{gmail_kiyota_count}**" if gmail_kiyota_count > 0 else " 🟢"
+
+gmail_kiyotaka_count, gmail_kiyotaka_error = get_unread_count("gmail_kiyotaka")
+gmail_kiyotaka_badge = ""
+if gmail_kiyotaka_error:
+    st.sidebar.error(f"Gmail(清隆)連携エラー: {gmail_kiyotaka_error}")
+elif gmail_kiyotaka_count is not None:
+    gmail_kiyotaka_badge = f" 🔴 **{gmail_kiyotaka_count}**" if gmail_kiyotaka_count > 0 else " 🟢"
 
 # Google自動翻訳を無効化するメタタグを挿入
 st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
@@ -145,7 +158,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**✉️ メールボックス**")
 st.sidebar.markdown(f"- [✉️ 独自ドメイン (メイン)]({f'https://webmail.muumuu-domain.com/mail/INBOX'}){muumuu_badge}")
 st.sidebar.markdown(f"- [📧 Gmail (きよた書店)](https://mail.google.com/mail/u/0/){gmail_kiyota_badge}")
-st.sidebar.markdown("- [📧 Gmail (清隆)](https://mail.google.com/mail/u/1/)")
+st.sidebar.markdown(f"- [📧 Gmail (清隆)](https://mail.google.com/mail/u/1/){gmail_kiyotaka_badge}")
 
 st.sidebar.markdown("- [ Yahoo!メール](https://mail.yahoo.co.jp/)")
 
