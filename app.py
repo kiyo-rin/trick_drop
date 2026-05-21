@@ -402,12 +402,6 @@ elif page == "📚 YGシステム (無在庫)":
                 
     else:
         st.info("直近100件のメールに新しい注文は見つかりませんでした。")
-        
-    st.markdown("---")
-    st.markdown("### 売上推移 (サンプル)")
-    sales_data = pd.DataFrame({"月": months, "売上": [350000, 420000, 390000, 510000, 600000]})
-    fig = px.bar(sales_data, x="月", y="売上", text="売上", color_discrete_sequence=["#3B82F6"])
-    st.plotly_chart(update_modern_layout(fig), use_container_width=True)
 
 elif page == "📖 国内有在庫 (千葉・神田)":
     st.markdown('<div class="main-header">📖 国内有在庫 (千葉古書・神田)</div>', unsafe_allow_html=True)
