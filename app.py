@@ -6,6 +6,9 @@ import imaplib
 import email
 from email.header import decode_header
 import time
+import re
+import datetime
+from email.utils import parsedate_to_datetime
 
 # ページ設定
 st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
@@ -198,6 +201,85 @@ st.sidebar.markdown("- [🌎 eBay](https://www.ebay.com/)")
 np.random.seed(42)
 months = [f"2026-{m:02d}" for m in range(1, 6)]
 
+# 自動で注文メールを取得する関数
+@st.cache_data(ttl=600)  # 10分間キャッシュ
+def get_recent_orders():
+    orders = []
+    try:
+        user = st.secrets["email"]["gmail_kiyota_user"]
+        password = st.secrets["email"]["gmail_kiyota_pass"]
+        server = "imap.gmail.com"
+        
+        mail = imaplib.IMAP4_SSL(server)
+        mail.login(user, password)
+        mail.select("inbox")
+        
+        # すべてのメールから最新100件のIDを取得
+        status, response = mail.search(None, 'ALL')
+        if status == 'OK':
+            email_ids = response[0].split()
+            latest_ids = email_ids[-100:]  # 最新100件を取得
+            
+            for e_id in reversed(latest_ids):
+                status, data = mail.fetch(e_id, '(RFC822)')
+                if status != 'OK': continue
+                
+                raw_email = data[0][1]
+                msg = email.message_from_bytes(raw_email)
+                
+                # 件名のデコード
+                subject_tuple = decode_header(msg['Subject'])[0]
+                subject = subject_tuple[0]
+                encoding = subject_tuple[1]
+                if isinstance(subject, bytes):
+                    subject = subject.decode(encoding if encoding else 'utf-8', errors='ignore')
+                    
+                # 日付のフォーマット
+                date_str = msg.get('Date', '')
+                try:
+                    dt = parsedate_to_datetime(date_str)
+                    formatted_date = dt.strftime('%Y/%m/%d %H:%M')
+                except:
+                    formatted_date = date_str
+                
+                # 送信元の確認
+                from_addr = msg.get('From', '')
+                
+                # ① Amazonの注文判定
+                if '注文確定' in subject and 'amazon.co.jp' in from_addr.lower():
+                    # 件名から商品名を抽出 (例: 注文確定 : SKU 商品名 [Tankobon...)
+                    # "]" や SKU の後の部分を抽出する簡易ロジック
+                    parts = subject.split(' ', 3)
+                    product_name = parts[-1] if len(parts) > 3 else subject
+                    
+                    orders.append({
+                        "受信日時": formatted_date,
+                        "プラットフォーム": "📦 Amazon",
+                        "商品名": product_name,
+                        "ステータス": "🔴 未発注_八木"
+                    })
+                    
+                # ② メルカリShopsの注文判定
+                elif '【メルカリShops】' in subject:
+                    # 件名から「商品名」を抽出 (例: 【メルカリShops】「〇〇〇」が購入されました)
+                    match = re.search(r'「(.*?)」', subject)
+                    product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
+                    
+                    # メッセージ受信等の通知も混ざる可能性があるが、購入関連としてリストアップ
+                    if '購入' in subject or 'メッセージ' in subject:
+                        orders.append({
+                            "受信日時": formatted_date,
+                            "プラットフォーム": "🔴 メルカリShops",
+                            "商品名": product_name,
+                            "ステータス": "🔴 未発注_八木"
+                        })
+                        
+        mail.logout()
+    except Exception as e:
+        st.error(f"注文リスト取得エラー: {e}")
+        
+    return pd.DataFrame(orders)
+
 # グラフの共通設定用関数
 def update_modern_layout(fig):
     fig.update_layout(
@@ -266,21 +348,23 @@ if page == "🚨 司令室 (メイン)":
         st.code("お疲れ様です！\n本日のデータを確認し、作業ファイルを更新しました。\n不明点があればチャットでご連絡ください。\nよろしくお願いします。", language="text")
 
 elif page == "📚 YGシステム (無在庫)":
-    st.markdown('<div class="main-header">📚 YGシステム (無在庫)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">📚 YGシステム (自動受注リスト)</div>', unsafe_allow_html=True)
+    st.markdown("きよた書店のGmailから、最新のAmazonとメルカリShopsの注文を自動抽出しています。")
     
-    st.markdown("### 売上推移")
+    with st.spinner('最新の注文メールを読み込んでいます...'):
+        orders_df = get_recent_orders()
+        
+    if not orders_df.empty:
+        st.success(f"最新の注文データを {len(orders_df)} 件 自動取得しました！")
+        st.dataframe(orders_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("直近100件のメールに新しい注文は見つかりませんでした。")
+        
+    st.markdown("---")
+    st.markdown("### 売上推移 (サンプル)")
     sales_data = pd.DataFrame({"月": months, "売上": [350000, 420000, 390000, 510000, 600000]})
     fig = px.bar(sales_data, x="月", y="売上", text="売上", color_discrete_sequence=["#3B82F6"])
     st.plotly_chart(update_modern_layout(fig), use_container_width=True)
-    
-    st.markdown("### 未発送リスト")
-    yg_tasks = pd.DataFrame({
-        "プラットフォーム": ["Amazon", "メルカリ", "日本の古本屋", "Yahoo!"],
-        "書籍名": ["現代物理学の基礎", "スラムダンク全巻", "古文書学入門", "プログラミング大全"],
-        "ISBN": ["978-4-00-111111-1", "978-4-08-222222-2", "978-4-12-333333-3", "978-4-77-444444-4"],
-        "八木書店発注要否": ["🔴 要発注", "🟢 発注済", "🔴 要発注", "🟢 発注済"]
-    })
-    st.dataframe(yg_tasks, use_container_width=True)
 
 elif page == "📖 国内有在庫 (千葉・神田)":
     st.markdown('<div class="main-header">📖 国内有在庫 (千葉古書・神田)</div>', unsafe_allow_html=True)
