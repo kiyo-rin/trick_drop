@@ -2,9 +2,48 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import numpy as np
+import imaplib
+import email
+from email.header import decode_header
+import time
 
 # ページ設定
 st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
+
+# 未読メールを取得する関数
+@st.cache_data(ttl=300) # 5分間は結果をキャッシュして再読み込みを高速化
+def get_unread_count():
+    try:
+        # Secretsから情報を取得
+        user = st.secrets["email"]["muumuu_user"]
+        password = st.secrets["email"]["muumuu_pass"]
+        server = st.secrets["email"]["muumuu_server"]
+        
+        # IMAPサーバーに接続
+        mail = imaplib.IMAP4_SSL(server)
+        mail.login(user, password)
+        mail.select("inbox")
+        
+        # 未読メールを検索
+        status, response = mail.search(None, 'UNSEEN')
+        if status == 'OK':
+            unread_ids = response[0].split()
+            count = len(unread_ids)
+            mail.logout()
+            return count
+        return 0
+    except Exception as e:
+        print(f"Mail check error: {e}")
+        return None # エラー時はNoneを返す
+
+# 未読数の取得を実行
+unread_count = get_unread_count()
+unread_badge = ""
+if unread_count is not None:
+    if unread_count > 0:
+        unread_badge = f" 🔴 **{unread_count}**"
+    else:
+        unread_badge = " 🟢"
 
 # Google自動翻訳を無効化するメタタグを挿入
 st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
@@ -90,7 +129,7 @@ st.sidebar.markdown("- [🏢 三協社](http://book-sankyo.co.jp/)")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**✉️ メールボックス**")
-st.sidebar.markdown("- [✉️ 独自ドメイン (メイン)](https://webmail.muumuu-domain.com/mail/INBOX)")
+st.sidebar.markdown(f"- [✉️ 独自ドメイン (メイン)]({f'https://webmail.muumuu-domain.com/mail/INBOX'}){unread_badge}")
 st.sidebar.markdown("- [📧 Gmail (きよた書店)](https://mail.google.com/mail/u/0/)")
 st.sidebar.markdown("- [📧 Gmail (清隆)](https://mail.google.com/mail/u/1/)")
 
