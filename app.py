@@ -306,6 +306,14 @@ def get_recent_orders():
                             if not re.search(r'[:\s]YG', subject) and 'YG' not in body:
                                 continue
                                 
+                            # SKUの抽出
+                            sku = ""
+                            sku_match = re.search(r'(YG[A-Za-z0-9\-]+)', subject)
+                            if not sku_match:
+                                sku_match = re.search(r'(YG[A-Za-z0-9\-]+)', body)
+                            if sku_match:
+                                sku = sku_match.group(1)
+                                
                             # メール本文から商品名を抽出 (一番確実なため)
                             product_name = ""
                             body_match = re.search(r'(?:商品|商品名)\s*[:：]\s*([^\n\r]+)', body)
@@ -326,9 +334,13 @@ def get_recent_orders():
                             product_name = re.sub(r'\s*\[(?:単行本|文庫|ペーパーバック|大型本|新書)\].*', '', product_name)
                             product_name = re.sub(r'\s*\((?:単行本|文庫|ペーパーバック|大型本|新書)\).*', '', product_name)
                             
+                            # 商品名の先頭に万が一SKUが残っていたら消す
+                            product_name = re.sub(rf'^[:\s]*{sku}[\s:]*', '', product_name).strip()
+                            
                             orders.append({
                                 "受信日時": formatted_date,
                                 "プラットフォーム": "📦 Amazon",
+                                "SKU": sku,
                                 "商品名": product_name.strip(),
                                 "ステータス": "🔴 未発注_八木"
                             })
@@ -339,12 +351,19 @@ def get_recent_orders():
                                 if 'YG' not in body and '商品管理コード : YG' not in body:
                                     continue
                                     
+                                # SKUの抽出
+                                sku = ""
+                                sku_match = re.search(r'(YG[A-Za-z0-9\-]+)', body)
+                                if sku_match:
+                                    sku = sku_match.group(1)
+                                    
                                 match = re.search(r'「(.*?)」', subject)
                                 product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
                                 
                                 orders.append({
                                     "受信日時": formatted_date,
                                     "プラットフォーム": "🔴 メルカリShops",
+                                    "SKU": sku,
                                     "商品名": product_name,
                                     "ステータス": "🔴 未発注_八木"
                                 })
@@ -492,8 +511,8 @@ elif page == "📚 YGシステム (無在庫)":
 
         st.info(f"📅 現在の表示期間: **{period_str}**")
 
-        # 画面表示用に並び替え
-        view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "商品名"]
+        # 画面表示用に並び替え (SKUをプラットフォームと商品名の間に追加)
+        view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "SKU", "商品名"]
         view_df = filtered_df[view_cols]
         
         st.markdown("👇 **チェックボックスをクリックすると、自動で「発注済み」として記録されます💡**")
@@ -503,6 +522,7 @@ elif page == "📚 YGシステム (無在庫)":
                 "✅ 発注済": st.column_config.CheckboxColumn("✅ 発注済", help="発注が終わったらチェック", default=False),
                 "受信日時": st.column_config.TextColumn("受信日時", disabled=True),
                 "プラットフォーム": st.column_config.TextColumn("プラットフォーム", disabled=True),
+                "SKU": st.column_config.TextColumn("SKU", disabled=True),
                 "商品名": st.column_config.TextColumn("商品名", disabled=True),
             },
             hide_index=True,
