@@ -340,10 +340,22 @@ def get_recent_orders():
                             # さらにもう一度、先頭に残った不要な記号(:や-など)を確実に消す
                             product_name = re.sub(r'^[:：\-\s]+', '', product_name).strip()
                             
+                            # 数量の抽出
+                            quantity = "1"
+                            qty_match = re.search(r'数量\s*[:：]\s*(\d+)', body)
+                            if qty_match:
+                                quantity = qty_match.group(1)
+                                
+                            if int(quantity) > 1:
+                                quantity_display = f"🚨 {quantity}冊"
+                            else:
+                                quantity_display = "1"
+                            
                             orders.append({
                                 "受信日時": formatted_date,
                                 "プラットフォーム": "📦 Amazon",
                                 "SKU": sku,
+                                "数量": quantity_display,
                                 "商品名": product_name.strip(),
                                 "ステータス": "🔴 未発注_八木"
                             })
@@ -363,10 +375,22 @@ def get_recent_orders():
                                 match = re.search(r'「(.*?)」', subject)
                                 product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
                                 
+                                # 数量の抽出 (メルカリShops)
+                                quantity = "1"
+                                qty_match = re.search(r'(?:数量|購入数|商品個数)\s*[:：]\s*(\d+)', body)
+                                if qty_match:
+                                    quantity = qty_match.group(1)
+                                    
+                                if int(quantity) > 1:
+                                    quantity_display = f"🚨 {quantity}冊"
+                                else:
+                                    quantity_display = "1"
+                                
                                 orders.append({
                                     "受信日時": formatted_date,
                                     "プラットフォーム": "🔴 メルカリShops",
                                     "SKU": sku,
+                                    "数量": quantity_display,
                                     "商品名": product_name,
                                     "ステータス": "🔴 未発注_八木"
                                 })
@@ -455,7 +479,7 @@ elif page == "📚 YGシステム (無在庫)":
         st.success(f"最新の注文データを {len(orders_df)} 件 自動取得しました！")
         
         # DataFrameが空ではないが、特定の列が欠けている場合の対策
-        for col in ["SKU", "商品名", "受信日時", "プラットフォーム", "🔗 八木リンク"]:
+        for col in ["SKU", "数量", "商品名", "受信日時", "プラットフォーム", "🔗 八木リンク"]:
             if col not in orders_df.columns:
                 orders_df[col] = ""
         
@@ -567,7 +591,7 @@ elif page == "📚 YGシステム (無在庫)":
         st.info(f"📅 現在の表示期間: **{period_str}**")
 
         # 画面表示用に並び替え (SKUをプラットフォームと商品名の間に追加、リンクも追加)
-        view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "🔗 八木リンク", "SKU", "商品名"]
+        view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "🔗 八木リンク", "SKU", "数量", "商品名"]
         view_df = filtered_df[view_cols]
         
         st.markdown("👇 **チェックボックスをクリックすると、自動で「発注済み」として記録されます💡**")
@@ -579,6 +603,7 @@ elif page == "📚 YGシステム (無在庫)":
                 "プラットフォーム": st.column_config.TextColumn("プラットフォーム", disabled=True),
                 "🔗 八木リンク": st.column_config.LinkColumn("🔗 八木リンク", help="八木書店のページを開く", display_text="発注ページへ", disabled=True),
                 "SKU": st.column_config.TextColumn("SKU", disabled=True),
+                "数量": st.column_config.TextColumn("数量", disabled=True),
                 "商品名": st.column_config.TextColumn("商品名", disabled=True),
             },
             hide_index=True,
