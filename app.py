@@ -500,9 +500,8 @@ elif page == "📚 YGシステム (無在庫)":
             isbn = sku_to_isbn.get(sku)
             if isbn:
                 # ISBNがあれば100%ヒットする
-                # optionselect:3 を付与することで、八木書店側のシステムで最初から「ISBN」での検索モードとして処理されるように強制する
-                # page:1 を付与することで、検索結果画面を自動的に表示させる（無いと検索ボタンを推す必要がある）
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/optionselect:3/page:1/keyword:{isbn}"
+                # categorycd:92330 (バーゲンブックカテゴリ) と page:1 を指定することで、初めて「検索結果として」ページが自動表示されます。
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{isbn}"
             
             # フォールバック：ISBNがない場合はタイトルで検索
             # 余計な記号を省いて最初の単語だけにする（八木書店の検索システムへの対策）
@@ -516,10 +515,10 @@ elif page == "📚 YGシステム (無在庫)":
             
             if parts:
                 q = urllib.parse.quote(parts[0])
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/keyword:{q}"
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{q}"
                 
             q = urllib.parse.quote(title.strip())
-            return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/keyword:{q}"
+            return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{q}"
             
         orders_df["🔗 八木リンク"] = orders_df.apply(make_yagi_link, axis=1)
         
