@@ -466,42 +466,16 @@ elif page == "📚 YGシステム (無在庫)":
                 except:
                     pass
                     
-            # JSONファイルからSKUに紐づく八木書店のURL（ISBN）を取得する辞書を作成
-            # (Streamlitのキャッシュを利用して高速化)
-            @st.cache_data(ttl=3600)
-            def load_sku_isbn_map():
-                import json, os
-                sku_to_isbn = {}
-                try:
-                    # yagi-scraperのルートディレクトリにある data/isbn_sku_map.json を読み込む
-                    json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "isbn_sku_map.json")
-                    if os.path.exists(json_path):
-                        with open(json_path, "r", encoding="utf-8") as f:
-                            data = json.load(f)
-                            for isbn, info in data.items():
-                                if "sku" in info:
-                                    sku_to_isbn[info["sku"]] = isbn
-                except:
-                    pass
-                return sku_to_isbn
-                
-            sku_to_isbn = load_sku_isbn_map()
-            
-        # チェック状態を保持するための列を用意
-        orders_df["_id"] = orders_df["受信日時"] + "_" + orders_df["商品名"]
-        orders_df["✅ 発注済"] = orders_df["_id"].map(lambda x: status_dict.get(x, False))
-        
-        # SKUから八木書店のURLリンクを作成する
-        def make_yagi_link(sku):
-            if not sku:
+            # URL作成用関数
+        import urllib.parse
+        def make_yagi_link(product_name):
+            if not product_name:
                 return ""
-            isbn = sku_to_isbn.get(sku)
-            if isbn:
-                # ISBNがわかれば八木書店のキーワード検索URLを作成
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{isbn}"
-            return ""
+            # 商品名からキーワード検索用URLを作成
+            q = urllib.parse.quote(product_name.strip())
+            return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/keyword:{q}"
             
-        orders_df["🔗 八木リンク"] = orders_df["SKU"].map(make_yagi_link)
+        orders_df["🔗 八木リンク"] = orders_df["商品名"].map(make_yagi_link)
         
         # --- 期間で絞り込み (八木発注の締め切り: 月曜8:30 / 木曜8:30) ---
         from datetime import datetime, timedelta, timezone
