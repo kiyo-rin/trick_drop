@@ -480,6 +480,10 @@ elif page == "📚 YGシステム (無在庫)":
             q = urllib.parse.quote(product_name.strip())
             return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/keyword:{q}"
             
+        # チェック状態を保持するための列を用意
+        orders_df["_id"] = orders_df["受信日時"] + "_" + orders_df["商品名"]
+        orders_df["✅ 発注済"] = orders_df["_id"].map(lambda x: status_dict.get(x, False))
+            
         orders_df["🔗 八木リンク"] = orders_df["商品名"].map(make_yagi_link)
         
         # --- 期間で絞り込み (八木発注の締め切り: 月曜8:30 / 木曜8:30) ---
