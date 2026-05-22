@@ -501,7 +501,8 @@ elif page == "📚 YGシステム (無在庫)":
             if isbn:
                 # ISBNがあれば100%ヒットする
                 # optionselect:3 を付与することで、八木書店側のシステムで最初から「ISBN」での検索モードとして処理されるように強制する
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/optionselect:3/keyword:{isbn}"
+                # page:1 を付与することで、検索結果画面を自動的に表示させる（無いと検索ボタンを推す必要がある）
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/optionselect:3/page:1/keyword:{isbn}"
             
             # フォールバック：ISBNがない場合はタイトルで検索
             # 余計な記号を省いて最初の単語だけにする（八木書店の検索システムへの対策）
