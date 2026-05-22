@@ -147,7 +147,7 @@ st.sidebar.title("TRICK DROP ⚡️")
 st.sidebar.markdown("**NAVIGATION**")
 
 pages = [
-    "🛰️ 司令室 (メイン)", 
+    "� 司令室 (メイン)", 
     "📚 YGシステム (無在庫)", 
     "📖 国内有在庫 (千葉・神田)", 
     "🌐 B28コマンド (越境プレ値)"
@@ -412,8 +412,8 @@ def update_modern_layout(fig):
     )
     return fig
 
-if page == "🛰️ 司令室 (メイン)":
-    st.markdown('<div class="main-header">🛰️ 司令室 (Command Center)</div>', unsafe_allow_html=True)
+if page == "� 司令室 (メイン)":
+    st.markdown('<div class="main-header">📡 司令室 (Command Center)</div>', unsafe_allow_html=True)
     st.markdown('<div class="slogan">TRICK DROP — 「ありえない成功を生み出す、仕掛けられた自販機」 ⚡️🎰</div>', unsafe_allow_html=True)
     
     # --- 1. 横断検索ツール ---
