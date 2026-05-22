@@ -471,20 +471,56 @@ elif page == "📚 YGシステム (無在庫)":
                 except:
                     pass
                     
-            # URL作成用関数
-        import urllib.parse
-        def make_yagi_link(product_name):
-            if not product_name:
-                return ""
-            # 商品名からキーワード検索用URLを作成
-            q = urllib.parse.quote(product_name.strip())
-            return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/keyword:{q}"
+        # 以前の巨大な isbn_sku_map.json はStreamlitエラーになるため、
+        # 必要な SKU -> ISBN の紐付けだけを抽出した軽量な辞書ファイルを読み込む
+        @st.cache_data(ttl=3600)
+        def load_sku_isbn_map():
+            import json, os
+            sku_to_isbn = {}
+            try:
+                json_path = os.path.join(os.path.dirname(__file__), "sku_to_isbn.json")
+                if os.path.exists(json_path):
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        sku_to_isbn = json.load(f)
+            except:
+                pass
+            return sku_to_isbn
             
+        sku_to_isbn = load_sku_isbn_map()
+        
         # チェック状態を保持するための列を用意
         orders_df["_id"] = orders_df["受信日時"] + "_" + orders_df["商品名"]
         orders_df["✅ 発注済"] = orders_df["_id"].map(lambda x: status_dict.get(x, False))
+        
+        # URL作成用関数 (ISBNがわかればそれを使う、わからなければクリーンな別名を使う)
+        import urllib.parse
+        import re
+        def make_yagi_link(row):
+            sku = row.get("SKU", "")
+            isbn = sku_to_isbn.get(sku)
+            if isbn:
+                # ISBNがあれば100%ヒットする
+                # ユーザーが使用していた元のURL構造
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{isbn}"
             
-        orders_df["🔗 八木リンク"] = orders_df["商品名"].map(make_yagi_link)
+            # フォールバック：ISBNがない場合はタイトルで検索
+            # 余計な記号を省いて最初の単語だけにする（八木書店の検索システムへの対策）
+            title = row.get("商品名", "")
+            if not title:
+                return ""
+            
+            clean = title.replace('「', ' ').replace('」', ' ')
+            parts = re.split(r'[ 　：:\(（\-]', clean)
+            parts = [p for p in parts if p.strip()]
+            
+            if parts:
+                q = urllib.parse.quote(parts[0])
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/keyword:{q}"
+                
+            q = urllib.parse.quote(title.strip())
+            return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/keyword:{q}"
+            
+        orders_df["🔗 八木リンク"] = orders_df.apply(make_yagi_link, axis=1)
         
         # --- 期間で絞り込み (八木発注の締め切り: 月曜8:30 / 木曜8:30) ---
         from datetime import datetime, timedelta, timezone
