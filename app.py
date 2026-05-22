@@ -500,8 +500,8 @@ elif page == "📚 YGシステム (無在庫)":
             isbn = sku_to_isbn.get(sku)
             if isbn:
                 # ISBNがあれば100%ヒットする
-                # ユーザーが使用していた元のURL構造
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{isbn}"
+                # optionselect:3 を付与することで、八木書店側のシステムで最初から「ISBN」での検索モードとして処理されるように強制する
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/optionselect:3/keyword:{isbn}"
             
             # フォールバック：ISBNがない場合はタイトルで検索
             # 余計な記号を省いて最初の単語だけにする（八木書店の検索システムへの対策）
