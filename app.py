@@ -10,7 +10,7 @@ import re
 import datetime
 from email.utils import parsedate_to_datetime
 
-from trick_drop.amazon_orders import render_amazon_orders_page
+from amazon_orders import render_amazon_orders_page
 
 # ページ設定
 st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
