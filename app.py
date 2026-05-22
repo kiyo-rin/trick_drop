@@ -215,11 +215,11 @@ def get_recent_orders():
         mail.login(user, password)
         mail.select("inbox")
         
-        # すべてのメールから最新300件のIDを取得 (取得件数を増やしました)
+        # 十分な日数をカバーできるように最新1000件のIDを取得
         status, response = mail.search(None, 'ALL')
         if status == 'OK':
             email_ids = response[0].split()
-            latest_ids = email_ids[-300:]  # 最新300件を取得
+            latest_ids = email_ids[-1000:]
             
             for e_id in reversed(latest_ids):
                 status, data = mail.fetch(e_id, '(RFC822)')
@@ -239,7 +239,10 @@ def get_recent_orders():
                 date_str = msg.get('Date', '')
                 try:
                     dt = parsedate_to_datetime(date_str)
-                    formatted_date = dt.strftime('%Y/%m/%d %H:%M')
+                    from datetime import timedelta, timezone
+                    jst = timezone(timedelta(hours=9))
+                    dt_jst = dt.astimezone(jst)
+                    formatted_date = dt_jst.strftime('%Y/%m/%d %H:%M')
                 except:
                     formatted_date = date_str
                 
@@ -404,9 +407,53 @@ elif page == "📚 YGシステム (無在庫)":
         orders_df["_id"] = orders_df["受信日時"] + "_" + orders_df["商品名"]
         orders_df["✅ 発注済"] = orders_df["_id"].map(lambda x: status_dict.get(x, False))
         
+        # --- 期間で絞り込み (八木発注の締め切り: 月曜8:30 / 木曜8:30) ---
+        from datetime import datetime, timedelta, timezone
+
+        def get_last_weekday(dt, target_weekday, hour=8, minute=30):
+            days_ago = (dt.weekday() - target_weekday) % 7
+            target = dt - timedelta(days=days_ago)
+            target = target.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if target > dt:
+                target -= timedelta(days=7)
+            return target
+
+        def get_next_weekday(dt, target_weekday, hour=8, minute=30):
+            days_ahead = (target_weekday - dt.weekday()) % 7
+            target = dt + timedelta(days=days_ahead)
+            target = target.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if target <= dt:
+                target += timedelta(days=7)
+            return target
+
+        JST = timezone(timedelta(hours=9))
+        dt_now = datetime.now(JST)
+
+        last_mon = get_last_weekday(dt_now, 0)
+        last_thu = get_last_weekday(dt_now, 3)
+
+        if last_mon > last_thu:
+            # 現在は月曜8:30〜木曜8:30の間 (次は木曜締め)
+            start_dt = get_last_weekday(dt_now, 6) # 前週の日曜
+            end_dt = get_next_weekday(dt_now, 3)   # 今週の木曜
+            period_str = f"{start_dt.strftime('%m/%d')} (日) 08:30 〜 {end_dt.strftime('%m/%d')} (木) 08:30"
+        else:
+            # 現在は木曜8:30〜月曜8:30の間 (次は月曜締め)
+            start_dt = get_last_weekday(dt_now, 2) # その週の水曜
+            end_dt = get_next_weekday(dt_now, 0)   # 次の月曜
+            period_str = f"{start_dt.strftime('%m/%d')} (水) 08:30 〜 {end_dt.strftime('%m/%d')} (月) 08:30"
+
+        orders_df['dt'] = pd.to_datetime(orders_df['受信日時'], format='%Y/%m/%d %H:%M', errors='coerce')
+        orders_df['dt'] = orders_df['dt'].dt.tz_localize(JST)
+
+        mask = (orders_df['dt'] >= start_dt) & (orders_df['dt'] <= end_dt) | orders_df['dt'].isna()
+        filtered_df = orders_df[mask].copy()
+
+        st.info(f"📅 現在の表示期間: **{period_str}**")
+
         # 画面表示用に並び替え
         view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "商品名"]
-        view_df = orders_df[view_cols]
+        view_df = filtered_df[view_cols]
         
         st.markdown("👇 **チェックボックスをクリックすると、自動で「発注済み」として記録されます💡**")
         edited_df = st.data_editor(
