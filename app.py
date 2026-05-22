@@ -454,6 +454,11 @@ elif page == "📚 YGシステム (無在庫)":
     if not orders_df.empty:
         st.success(f"最新の注文データを {len(orders_df)} 件 自動取得しました！")
         
+        # DataFrameが空ではないが、特定の列が欠けている場合の対策
+        for col in ["SKU", "商品名", "受信日時", "プラットフォーム", "🔗 八木リンク"]:
+            if col not in orders_df.columns:
+                orders_df[col] = ""
+        
         import os
         import json
         STATUS_FILE = "yg_order_status.json"
