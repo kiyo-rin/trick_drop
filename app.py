@@ -10,6 +10,8 @@ import re
 import datetime
 from email.utils import parsedate_to_datetime
 
+from trick_drop.amazon_orders import render_amazon_orders_page
+
 # ページ設定
 st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
 
@@ -149,7 +151,8 @@ st.sidebar.markdown("**NAVIGATION**")
 pages = [
     "🎰 司令室 (メイン)", 
     "📚 YGシステム (無在庫)", 
-    "📖 国内有在庫 (千葉・神田)", 
+    "� 未発送の注文 (Amazon)",
+    "�📖 国内有在庫 (千葉・神田)", 
     "🌐 B28コマンド (越境プレ値)"
 ]
 
@@ -485,7 +488,7 @@ elif page == "📚 YGシステム (無在庫)":
         
         import os
         import json
-        STATUS_FILE = "yg_order_status.json"
+        STATUS_FILE = ".yg_order_status.json"  # 隠しファイルにしてStreamlitの監視対象から外す（これではじきを防止）
         
         status_dict = {}
         if os.path.exists(STATUS_FILE):
@@ -592,39 +595,79 @@ elif page == "📚 YGシステム (無在庫)":
 
         # 画面表示用に並び替え (SKUをプラットフォームと商品名の間に追加、リンクも追加)
         view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "🔗 八木リンク", "SKU", "数量", "商品名"]
-        view_df = filtered_df[view_cols]
         
-        st.markdown("👇 **チェックボックスをクリックすると、自動で「発注済み」として記録されます💡**")
-        edited_df = st.data_editor(
-            view_df,
-            column_config={
-                "✅ 発注済": st.column_config.CheckboxColumn("✅ 発注済", help="発注が終わったらチェック", default=False),
-                "受信日時": st.column_config.TextColumn("受信日時", disabled=True),
-                "プラットフォーム": st.column_config.TextColumn("プラットフォーム", disabled=True),
-                "🔗 八木リンク": st.column_config.LinkColumn("🔗 八木リンク", help="八木書店のページを開く", display_text="発注ページへ", disabled=True),
-                "SKU": st.column_config.TextColumn("SKU", disabled=True),
-                "数量": st.column_config.TextColumn("数量", disabled=True),
-                "商品名": st.column_config.TextColumn("商品名", disabled=True),
-            },
-            hide_index=True,
-            use_container_width=True,
-            height=700  # 一覧を下まで伸ばす
-        )
+        import json, os
+        STATUS_FILE = ".yg_order_status.json"
         
-        # 変更があればJSONに保存
-        new_status_dict = status_dict.copy()
-        for index, row in edited_df.iterrows():
-            row_id = f"{row['受信日時']}_{row['商品名']}"
-            new_status_dict[row_id] = row['✅ 発注済']
+        # 毎回の読み込みでJSONから最新状態を取得する（セッションステートの固定は不要）
+        status_dict = {}
+        if os.path.exists(STATUS_FILE):
+            try:
+                with open(STATUS_FILE, "r", encoding="utf-8") as f:
+                    status_dict = json.load(f)
+            except:
+                pass
+        
+        df = filtered_df[view_cols].copy()
+        df["✅ 発注済"] = df.apply(lambda row: status_dict.get(f"{row['受信日時']}_{row['商品名']}", False), axis=1)
+        
+        st.markdown("<h3 style='color: #E32B36;'>⚠️ 【重要】チェック後の弾かれを完全に防ぐフォーム形式</h3>", unsafe_allow_html=True)
+        st.markdown("👇 **チェックを入れてもすぐには裏で保存されません。ポンポン連続でチェックを入れて、最後に下の「💾 変更を確定する」ボタンを押してください💡**")
+        st.info("※この枠組み（フォーム）の中でのクリックはシステム側と通信しないため、**絶対に弾かれたりカクついたりしません。**")
+
+        with st.form("yg_order_form"):
+            edited_df = st.data_editor(
+                df,
+                key="yg_orders_editor_form_final",
+                column_config={
+                    "✅ 発注済": st.column_config.CheckboxColumn("✅ 発注済", help="発注が終わったらチェック"),
+                    "受信日時": st.column_config.TextColumn("受信日時", disabled=True),
+                    "プラットフォーム": st.column_config.TextColumn("プラットフォーム", disabled=True),
+                    "🔗 八木リンク": st.column_config.LinkColumn("🔗 八木リンク", help="八木書店のページを開く", display_text="発注ページへ", disabled=True),
+                    "SKU": st.column_config.TextColumn("SKU", disabled=True),
+                    "数量": st.column_config.TextColumn("数量", disabled=True),
+                    "商品名": st.column_config.TextColumn("商品名", disabled=True),
+                },
+                hide_index=True,
+                use_container_width=True,
+                height=700,
+            )
             
-        if new_status_dict != status_dict:
-            with open(STATUS_FILE, "w", encoding="utf-8") as f:
-                json.dump(new_status_dict, f, ensure_ascii=False, indent=2)
+            # フォームの送信ボタン
+            submit_btn = st.form_submit_button("💾 変更を確定する（カクつきゼロ👍）", type="primary", use_container_width=True)
+            
+            if submit_btn:
+                # 確定されたときだけJSONを上書き保存する
+                latest_status = {}
+                if os.path.exists(STATUS_FILE):
+                    try:
+                        with open(STATUS_FILE, "r", encoding="utf-8") as f:
+                            latest_status = json.load(f)
+                    except:
+                        pass
+                        
+                changed = False
+                for index, row in edited_df.iterrows():
+                    row_id = f"{row['受信日時']}_{row['商品名']}"
+                    new_val = bool(row['✅ 発注済'])
+                    if latest_status.get(row_id, False) != new_val:
+                        latest_status[row_id] = new_val
+                        changed = True
+                        
+                if changed:
+                    with open(STATUS_FILE, "w", encoding="utf-8") as f:
+                        json.dump(latest_status, f, ensure_ascii=False, indent=2)
+                
+                st.success("✅ チェック状態を保存しました！")
+                st.rerun()
                 
     else:
         st.info("直近100件のメールに新しい注文は見つかりませんでした。")
 
-elif page == "📖 国内有在庫 (千葉・神田)":
+elif page == "� 未発送の注文 (Amazon)":
+    render_amazon_orders_page()
+
+elif page == "�📖 国内有在庫 (千葉・神田)":
     st.markdown('<div class="main-header">📖 国内有在庫 (千葉古書・神田)</div>', unsafe_allow_html=True)
     
     st.markdown("### 売上推移")
