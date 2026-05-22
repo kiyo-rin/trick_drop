@@ -10,7 +10,7 @@ import re
 import datetime
 from email.utils import parsedate_to_datetime
 
-from amazon_orders import render_amazon_orders_page
+# from amazon_orders import render_amazon_orders_page
 
 # ページ設定
 st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
@@ -151,8 +151,8 @@ st.sidebar.markdown("**NAVIGATION**")
 pages = [
     "🎰 司令室 (メイン)", 
     "📚 YGシステム (無在庫)", 
-    "� 未発送の注文 (Amazon)",
-    "�📖 国内有在庫 (千葉・神田)", 
+    # "未発送の注文 (Amazon)",
+    "📖 国内有在庫 (千葉・神田)", 
     "🌐 B28コマンド (越境プレ値)"
 ]
 
@@ -664,10 +664,10 @@ elif page == "📚 YGシステム (無在庫)":
     else:
         st.info("直近100件のメールに新しい注文は見つかりませんでした。")
 
-elif page == "� 未発送の注文 (Amazon)":
-    render_amazon_orders_page()
+# elif page == " 未発送の注文 (Amazon)":
+#     render_amazon_orders_page()
 
-elif page == "�📖 国内有在庫 (千葉・神田)":
+elif page == "📖 国内有在庫 (千葉・神田)":
     st.markdown('<div class="main-header">📖 国内有在庫 (千葉古書・神田)</div>', unsafe_allow_html=True)
     
     st.markdown("### 売上推移")
