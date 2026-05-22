@@ -145,12 +145,26 @@ st.markdown("""
 # サイドバー
 st.sidebar.title("TRICK DROP ⚡️")
 st.sidebar.markdown("**NAVIGATION**")
-page = st.sidebar.radio("", [
+
+pages = [
     "🚨 司令室 (メイン)", 
     "📚 YGシステム (無在庫)", 
     "📖 国内有在庫 (千葉・神田)", 
     "🌐 B28コマンド (越境プレ値)"
-])
+]
+
+# URLパラメータから現在のページを取得してデフォルト選択にする
+default_index = 0
+if "page" in st.query_params:
+    try:
+        default_index = pages.index(st.query_params["page"])
+    except ValueError:
+        pass
+
+page = st.sidebar.radio("", pages, index=default_index)
+
+# 選択されたページをURLパラメータに保存（リロード対策）
+st.query_params["page"] = page
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔗 クイックアクセス**")
