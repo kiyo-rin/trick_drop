@@ -500,8 +500,8 @@ elif page == "📚 YGシステム (無在庫)":
             isbn = sku_to_isbn.get(sku)
             if isbn:
                 # ISBNがあれば100%ヒットする
-                # URLのパラメータを keyword: ではなく isbn: にすることで、手動でプルダウンを切り替えなくても一発でISBN検索として処理されます
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/isbn:{isbn}"
+                # URLパラメーターで optionselect:3 とすることで、上部のメイン検索窓にISBNを入れた状態で「ISBN」検索として処理されます
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:keyword_search/keyword:{isbn}/optionselect:3"
             
             # フォールバック：ISBNがない場合はタイトル検索
             # 余計な記号を省いて最初の単語だけにする（八木書店の検索システムへの対策）
@@ -515,10 +515,10 @@ elif page == "📚 YGシステム (無在庫)":
             
             if parts:
                 q = urllib.parse.quote(parts[0])
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{q}"
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:keyword_search/page:1/keyword:{q}"
                 
             q = urllib.parse.quote(title.strip())
-            return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{q}"
+            return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:keyword_search/page:1/keyword:{q}"
             
         orders_df["🔗 八木リンク"] = orders_df.apply(make_yagi_link, axis=1)
         
