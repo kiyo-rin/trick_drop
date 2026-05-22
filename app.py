@@ -246,8 +246,34 @@ def get_recent_orders():
                 # 送信元の確認
                 from_addr = msg.get('From', '')
                 
+                # 本文を取得 (メルカリ等の商品管理コード確認用)
+                body = ""
+                if msg.is_multipart():
+                    for part in msg.walk():
+                        if part.get_content_type() == 'text/plain':
+                            body_bytes = part.get_payload(decode=True)
+                            if body_bytes:
+                                charset = part.get_content_charset() or 'utf-8'
+                                try:
+                                    body = body_bytes.decode(charset, errors='ignore')
+                                except:
+                                    body = body_bytes.decode('utf-8', errors='ignore')
+                            break
+                else:
+                    body_bytes = msg.get_payload(decode=True)
+                    if body_bytes:
+                        charset = msg.get_content_charset() or 'utf-8'
+                        try:
+                            body = body_bytes.decode(charset, errors='ignore')
+                        except:
+                            body = body_bytes.decode('utf-8', errors='ignore')
+                
                 # ① Amazonの注文判定
                 if '注文確定' in subject and 'amazon.co.jp' in from_addr.lower():
+                    # YGから始まるSKUのみを対象とする
+                    if not re.search(r'[:\s]YG', subject) and 'YG' not in body:
+                        continue
+                        
                     # 件名から商品名を抽出 (例: 注文確定 : SKU 商品名 [Tankobon...)
                     # "]" や SKU の後の部分を抽出する簡易ロジック
                     parts = subject.split(' ', 3)
@@ -262,12 +288,16 @@ def get_recent_orders():
                     
                 # ② メルカリShopsの注文判定
                 elif '【メルカリShops】' in subject:
-                    # 件名から「商品名」を抽出 (例: 【メルカリShops】「〇〇〇」が購入されました)
-                    match = re.search(r'「(.*?)」', subject)
-                    product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
-                    
-                    # メッセージ受信等の通知も混ざる可能性があるが、購入関連としてリストアップ
-                    if '購入' in subject or 'メッセージ' in subject:
+                    # 「発送」または「購入」が含まれ、かつ「メッセージ」ではないものを注文とする
+                    if ('発送' in subject or '購入' in subject) and 'メッセージ' not in subject:
+                        # YGから始まる商品管理コードのみ対象とする
+                        if 'YG' not in body and '商品管理コード : YG' not in body:
+                            continue
+                            
+                        # 件名から「商品名」を抽出 (例: 【メルカリShops】「〇〇〇」が購入されました)
+                        match = re.search(r'「(.*?)」', subject)
+                        product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
+                        
                         orders.append({
                             "受信日時": formatted_date,
                             "プラットフォーム": "🔴 メルカリShops",
