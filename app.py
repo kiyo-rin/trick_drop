@@ -215,11 +215,11 @@ def get_recent_orders():
         mail.login(user, password)
         mail.select("inbox")
         
-        # すべてのメールから最新100件のIDを取得
+        # すべてのメールから最新300件のIDを取得 (取得件数を増やしました)
         status, response = mail.search(None, 'ALL')
         if status == 'OK':
             email_ids = response[0].split()
-            latest_ids = email_ids[-100:]  # 最新100件を取得
+            latest_ids = email_ids[-300:]  # 最新300件を取得
             
             for e_id in reversed(latest_ids):
                 status, data = mail.fetch(e_id, '(RFC822)')
@@ -418,7 +418,8 @@ elif page == "📚 YGシステム (無在庫)":
                 "商品名": st.column_config.TextColumn("商品名", disabled=True),
             },
             hide_index=True,
-            use_container_width=True
+            use_container_width=True,
+            height=700  # 一覧を下まで伸ばす
         )
         
         # 変更があればJSONに保存
