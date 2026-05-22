@@ -334,11 +334,11 @@ def get_recent_orders():
                             product_name = re.sub(r'\s*\[(?:単行本|文庫|ペーパーバック|大型本|新書)\].*', '', product_name)
                             product_name = re.sub(r'\s*\((?:単行本|文庫|ペーパーバック|大型本|新書)\).*', '', product_name)
                             
-                            # 商品名の先頭に万が一SKUが残っていたら消す
-                            product_name = re.sub(rf'^[:\s]*{sku}[\s:]*', '', product_name).strip()
+                            # 商品名の先頭に万が一SKUが残っていたら、正規表現で強力に消す
+                            product_name = re.sub(r'^[:：\s]*(?:SKU)?[:：\s]*YG[A-Za-z0-9\-]+[\s:：\-]*', '', product_name, flags=re.IGNORECASE)
                             
-                            # さらにもう一度、先頭に残った不要な記号(:など)を確実に消す
-                            product_name = re.sub(r'^[:：\s]+', '', product_name).strip()
+                            # さらにもう一度、先頭に残った不要な記号(:や-など)を確実に消す
+                            product_name = re.sub(r'^[:：\-\s]+', '', product_name).strip()
                             
                             orders.append({
                                 "受信日時": formatted_date,
