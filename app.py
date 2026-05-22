@@ -215,98 +215,108 @@ def get_recent_orders():
         mail.login(user, password)
         mail.select("inbox")
         
-        # 十分な日数をカバーできるように最新1000件のIDを取得
-        status, response = mail.search(None, 'ALL')
+        # 過去2週間分のメールIDをサーバー側で絞り込んで取得
+        from datetime import datetime, timedelta
+        search_date = (datetime.now() - timedelta(days=14)).strftime("%d-%b-%Y")
+        status, response = mail.search(None, 'SINCE', search_date)
+        
         if status == 'OK':
             email_ids = response[0].split()
             latest_ids = email_ids[-1000:]
             
-            for e_id in reversed(latest_ids):
-                status, data = mail.fetch(e_id, '(RFC822)')
+            # まとめて取得 (1度に100件ずつリクエストして高速化)
+            chunk_size = 100
+            for i in range(len(latest_ids)-1, -1, -chunk_size):
+                start_idx = max(0, i - chunk_size + 1)
+                chunk_ids = latest_ids[start_idx : i + 1]
+                
+                # 新しい順に処理するためチャンク内を反転
+                chunk_ids = chunk_ids[::-1]
+                ids_str = b",".join(chunk_ids)
+                
+                # RFC822でメール本文をまとめて取得
+                status, data = mail.fetch(ids_str, '(BODY.PEEK[])')
                 if status != 'OK': continue
                 
-                raw_email = data[0][1]
-                msg = email.message_from_bytes(raw_email)
-                
-                # 件名のデコード
-                subject_tuple = decode_header(msg['Subject'])[0]
-                subject = subject_tuple[0]
-                encoding = subject_tuple[1]
-                if isinstance(subject, bytes):
-                    subject = subject.decode(encoding if encoding else 'utf-8', errors='ignore')
-                    
-                # 日付のフォーマット
-                date_str = msg.get('Date', '')
-                try:
-                    dt = parsedate_to_datetime(date_str)
-                    from datetime import timedelta, timezone
-                    jst = timezone(timedelta(hours=9))
-                    dt_jst = dt.astimezone(jst)
-                    formatted_date = dt_jst.strftime('%Y/%m/%d %H:%M')
-                except:
-                    formatted_date = date_str
-                
-                # 送信元の確認
-                from_addr = msg.get('From', '')
-                
-                # 本文を取得 (メルカリ等の商品管理コード確認用)
-                body = ""
-                if msg.is_multipart():
-                    for part in msg.walk():
-                        if part.get_content_type() == 'text/plain':
-                            body_bytes = part.get_payload(decode=True)
+                for response_part in data:
+                    if isinstance(response_part, tuple):
+                        raw_email = response_part[1]
+                        msg = email.message_from_bytes(raw_email)
+                        
+                        # 件名のデコード
+                        subject_tuple = decode_header(msg['Subject'])[0]
+                        subject = subject_tuple[0]
+                        encoding = subject_tuple[1]
+                        if isinstance(subject, bytes):
+                            subject = subject.decode(encoding if encoding else 'utf-8', errors='ignore')
+                            
+                        # 日付のフォーマット
+                        date_str = msg.get('Date', '')
+                        try:
+                            dt = parsedate_to_datetime(date_str)
+                            from datetime import timezone
+                            jst = timezone(timedelta(hours=9))
+                            dt_jst = dt.astimezone(jst)
+                            formatted_date = dt_jst.strftime('%Y/%m/%d %H:%M')
+                        except:
+                            formatted_date = date_str
+                        
+                        # 送信元の確認
+                        from_addr = msg.get('From', '')
+                        
+                        # 本文を取得 (メルカリ等の商品管理コード確認用)
+                        body = ""
+                        if msg.is_multipart():
+                            for part in msg.walk():
+                                if part.get_content_type() == 'text/plain':
+                                    body_bytes = part.get_payload(decode=True)
+                                    if body_bytes:
+                                        charset = part.get_content_charset() or 'utf-8'
+                                        try:
+                                            body = body_bytes.decode(charset, errors='ignore')
+                                        except:
+                                            body = body_bytes.decode('utf-8', errors='ignore')
+                                    break
+                        else:
+                            body_bytes = msg.get_payload(decode=True)
                             if body_bytes:
-                                charset = part.get_content_charset() or 'utf-8'
+                                charset = msg.get_content_charset() or 'utf-8'
                                 try:
                                     body = body_bytes.decode(charset, errors='ignore')
                                 except:
                                     body = body_bytes.decode('utf-8', errors='ignore')
-                            break
-                else:
-                    body_bytes = msg.get_payload(decode=True)
-                    if body_bytes:
-                        charset = msg.get_content_charset() or 'utf-8'
-                        try:
-                            body = body_bytes.decode(charset, errors='ignore')
-                        except:
-                            body = body_bytes.decode('utf-8', errors='ignore')
-                
-                # ① Amazonの注文判定
-                if '注文確定' in subject and 'amazon.co.jp' in from_addr.lower():
-                    # YGから始まるSKUのみを対象とする
-                    if not re.search(r'[:\s]YG', subject) and 'YG' not in body:
-                        continue
                         
-                    # 件名から商品名を抽出 (例: 注文確定 : SKU 商品名 [Tankobon...)
-                    # "]" や SKU の後の部分を抽出する簡易ロジック
-                    parts = subject.split(' ', 3)
-                    product_name = parts[-1] if len(parts) > 3 else subject
-                    
-                    orders.append({
-                        "受信日時": formatted_date,
-                        "プラットフォーム": "📦 Amazon",
-                        "商品名": product_name,
-                        "ステータス": "🔴 未発注_八木"
-                    })
-                    
-                # ② メルカリShopsの注文判定
-                elif '【メルカリShops】' in subject:
-                    # 「発送」または「購入」が含まれ、かつ「メッセージ」ではないものを注文とする
-                    if ('発送' in subject or '購入' in subject) and 'メッセージ' not in subject:
-                        # YGから始まる商品管理コードのみ対象とする
-                        if 'YG' not in body and '商品管理コード : YG' not in body:
-                            continue
+                        # ① Amazonの注文判定
+                        if '注文確定' in subject and 'amazon.co.jp' in from_addr.lower():
+                            # YGから始まるSKUのみを対象とする
+                            if not re.search(r'[:\s]YG', subject) and 'YG' not in body:
+                                continue
+                                
+                            parts = subject.split(' ', 3)
+                            product_name = parts[-1] if len(parts) > 3 else subject
                             
-                        # 件名から「商品名」を抽出 (例: 【メルカリShops】「〇〇〇」が購入されました)
-                        match = re.search(r'「(.*?)」', subject)
-                        product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
-                        
-                        orders.append({
-                            "受信日時": formatted_date,
-                            "プラットフォーム": "🔴 メルカリShops",
-                            "商品名": product_name,
-                            "ステータス": "🔴 未発注_八木"
-                        })
+                            orders.append({
+                                "受信日時": formatted_date,
+                                "プラットフォーム": "📦 Amazon",
+                                "商品名": product_name,
+                                "ステータス": "🔴 未発注_八木"
+                            })
+                            
+                        # ② メルカリShopsの注文判定
+                        elif '【メルカリShops】' in subject:
+                            if ('発送' in subject or '購入' in subject) and 'メッセージ' not in subject:
+                                if 'YG' not in body and '商品管理コード : YG' not in body:
+                                    continue
+                                    
+                                match = re.search(r'「(.*?)」', subject)
+                                product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
+                                
+                                orders.append({
+                                    "受信日時": formatted_date,
+                                    "プラットフォーム": "🔴 メルカリShops",
+                                    "商品名": product_name,
+                                    "ステータス": "🔴 未発注_八木"
+                                })
                         
         mail.logout()
     except Exception as e:
