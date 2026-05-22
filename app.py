@@ -306,13 +306,30 @@ def get_recent_orders():
                             if not re.search(r'[:\s]YG', subject) and 'YG' not in body:
                                 continue
                                 
-                            parts = subject.split(' ', 3)
-                            product_name = parts[-1] if len(parts) > 3 else subject
+                            # メール本文から商品名を抽出 (一番確実なため)
+                            product_name = ""
+                            body_match = re.search(r'(?:商品|商品名)\s*[:：]\s*([^\n\r]+)', body)
+                            if body_match:
+                                product_name = body_match.group(1).strip()
+                            else:
+                                # 何らかの理由で本文から取れない場合は件名から綺麗に抽出
+                                product_name = subject
+                                if '注文確定' in product_name:
+                                    product_name = product_name.split('注文確定')[-1]
+                                product_name = re.sub(r'^\s*[\-\:]?\s*出品者出荷のご注文\s*[\-\:]?\s*', '', product_name)
+                                product_name = re.sub(r'^[\s:\-]*', '', product_name)
+                                product_name = re.sub(r'^(?:SKU\s*[:\-]?\s*)?[A-Za-z0-9\-_]+\s+', '', product_name)
+                                
+                            # 商品名から "[Tankobon Hardcover] [2022] 著者名" のような不要なAmazonの装飾タグを一掃する
+                            product_name = re.sub(r'\s*\[Tankobon.*', '', product_name, flags=re.IGNORECASE)
+                            product_name = re.sub(r'\s*\[JP Oversized.*', '', product_name, flags=re.IGNORECASE)
+                            product_name = re.sub(r'\s*\[(?:単行本|文庫|ペーパーバック|大型本|新書)\].*', '', product_name)
+                            product_name = re.sub(r'\s*\((?:単行本|文庫|ペーパーバック|大型本|新書)\).*', '', product_name)
                             
                             orders.append({
                                 "受信日時": formatted_date,
                                 "プラットフォーム": "📦 Amazon",
-                                "商品名": product_name,
+                                "商品名": product_name.strip(),
                                 "ステータス": "🔴 未発注_八木"
                             })
                             
