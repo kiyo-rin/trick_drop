@@ -337,6 +337,9 @@ def get_recent_orders():
                             # 商品名の先頭に万が一SKUが残っていたら消す
                             product_name = re.sub(rf'^[:\s]*{sku}[\s:]*', '', product_name).strip()
                             
+                            # さらにもう一度、先頭に残った不要な記号(:など)を確実に消す
+                            product_name = re.sub(r'^[:：\s]+', '', product_name).strip()
+                            
                             orders.append({
                                 "受信日時": formatted_date,
                                 "プラットフォーム": "📦 Amazon",
