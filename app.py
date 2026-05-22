@@ -500,10 +500,10 @@ elif page == "📚 YGシステム (無在庫)":
             isbn = sku_to_isbn.get(sku)
             if isbn:
                 # ISBNがあれば100%ヒットする
-                # categorycd:92330 (バーゲンブックカテゴリ) と page:1 を指定することで、初めて「検索結果として」ページが自動表示されます。
-                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/keyword:{isbn}"
+                # URLのパラメータを keyword: ではなく isbn: にすることで、手動でプルダウンを切り替えなくても一発でISBN検索として処理されます
+                return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:yagi_parent_search/categorycd:92330/page:1/isbn:{isbn}"
             
-            # フォールバック：ISBNがない場合はタイトルで検索
+            # フォールバック：ISBNがない場合はタイトル検索
             # 余計な記号を省いて最初の単語だけにする（八木書店の検索システムへの対策）
             title = row.get("商品名", "")
             if not title:
