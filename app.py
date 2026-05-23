@@ -199,6 +199,7 @@ st.sidebar.markdown(f"- [ Yahoo!メール](https://mail.yahoo.co.jp/){yahoo_badg
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🏦 銀行・財務**")
 st.sidebar.markdown("- [🏧 GMOあおぞらネット銀行](https://sso.gmo-aozora.com/b2c/login?service=https%3A%2F%2Fbank.gmo-aozora.com%2Fbank)")
+st.sidebar.markdown("- [📁 財務フォルダ (Google Drive)](https://drive.google.com/drive/u/0/folders/1lxnbNFHyLMLjL0RfcwvL3xqufuotdNAT)")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🚚 配送・物流**")
