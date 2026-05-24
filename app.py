@@ -597,6 +597,9 @@ elif page == "📚 YGシステム (自動受注リスト)":
         # 画面表示用に並び替え (SKUをプラットフォームと商品名の間に追加、リンクも追加)
         view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "🔗 八木リンク", "SKU", "数量", "商品名"]
         
+        # 受信日時の新しい順に降順ソート
+        filtered_df = filtered_df.sort_values(by="dt", ascending=False)
+        
         import json, os
         STATUS_FILE = ".yg_order_status.json"
         
