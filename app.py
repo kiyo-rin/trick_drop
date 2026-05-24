@@ -15,6 +15,54 @@ from email.utils import parsedate_to_datetime
 # ページ設定
 st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
 
+import streamlit.components.v1 as components
+components.html(
+    """
+    <script>
+    const doc = window.parent.document;
+    
+    // Apple用（iOS Safari / iOS Chrome用）
+    let appleLink = doc.querySelector('link[rel="apple-touch-icon"]');
+    if (!appleLink) {
+        appleLink = doc.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        doc.head.appendChild(appleLink);
+    }
+
+    // Android / PC Chromeなどの標準アイコン用
+    let iconLink = doc.querySelector('link[rel="icon"]');
+    if (!iconLink) {
+        iconLink = doc.createElement('link');
+        iconLink.rel = 'icon';
+        doc.head.appendChild(iconLink);
+    }
+    
+    // iOSはSVGアイコンに非対応のため、CanvasでPNG画像を生成する
+    const canvas = document.createElement('canvas');
+    canvas.width = 180;
+    canvas.height = 180;
+    const ctx = canvas.getContext('2d');
+    
+    // 背景を黒にする
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 180, 180);
+    
+    // ⚡️を描画
+    ctx.font = '100px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚡️', 90, 95);
+    
+    // PNG化して設定
+    const dataUrl = canvas.toDataURL('image/png');
+    appleLink.href = dataUrl;
+    iconLink.href = dataUrl;
+    </script>
+    """,
+    height=0,
+    width=0,
+)
+
 # 未読メールを取得する関数
 @st.cache_data(ttl=300) # 5分間は結果をキャッシュして再読み込みを高速化
 def get_unread_count(account_type="muumuu"):
