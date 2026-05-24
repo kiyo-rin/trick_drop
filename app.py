@@ -617,7 +617,6 @@ elif page == "📚 YGシステム (自動受注リスト)":
         
         st.markdown("<h3 style='color: #E32B36;'>⚠️ 【重要】チェック後の弾かれを完全に防ぐフォーム形式</h3>", unsafe_allow_html=True)
         st.markdown("👇 **チェックを入れてもすぐには裏で保存されません。ポンポン連続でチェックを入れて、最後に下の「💾 変更を確定する」ボタンを押してください💡**")
-        st.info("※この枠組み（フォーム）の中でのクリックはシステム側と通信しないため、**絶対に弾かれたりカクついたりしません。**")
 
         with st.form("yg_order_form"):
             edited_df = st.data_editor(
@@ -638,7 +637,7 @@ elif page == "📚 YGシステム (自動受注リスト)":
             )
             
             # フォームの送信ボタン
-            submit_btn = st.form_submit_button("💾 変更を確定する（カクつきゼロ👍）", type="primary", use_container_width=True)
+            submit_btn = st.form_submit_button("💾 変更を確定する", type="primary", use_container_width=True)
             
             if submit_btn:
                 # 確定されたときだけJSONを上書き保存する
