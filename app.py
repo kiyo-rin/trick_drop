@@ -150,7 +150,7 @@ st.sidebar.markdown("**NAVIGATION**")
 
 pages = [
     "🎰 司令室 (メイン)", 
-    "📚 YGシステム (無在庫)", 
+    "📚 YGシステム (自動受注リスト)", 
     # "未発送の注文 (Amazon)",
     "📖 国内有在庫 (千葉・神田)", 
     "🌐 B28コマンド (越境プレ値)"
@@ -472,7 +472,7 @@ if page == "🎰 司令室 (メイン)":
         st.caption("▼ 指示メッセージ (作業スタッフ用)")
         st.code("お疲れ様です！\n本日のデータを確認し、作業ファイルを更新しました。\n不明点があればチャットでご連絡ください。\nよろしくお願いします。", language="text")
 
-elif page == "📚 YGシステム (無在庫)":
+elif page == "📚 YGシステム (自動受注リスト)":
     st.markdown('<div class="main-header">📚 YGシステム (自動受注リスト)</div>', unsafe_allow_html=True)
     st.markdown("きよた書店のGmailから、最新のAmazonとメルカリShopsの注文を自動抽出しています。")
     
