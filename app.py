@@ -305,6 +305,387 @@ def get_recent_orders():
                         
                         # ① Amazonの注文判定
                         if '注文確定' in subject and 'amazon.co.jp' in from_addr.lower():
+                            if not re.search(r'[:\s]YG', subject) and 'YG' not in body:
+                                continue
+                                
+                            # メール本文から「商品：」などで行を分割して複数商品（合わせ買い）をすべて抽出する
+                            blocks = re.split(r'(?:商品|商品名)\s*(?:<[^>]*>\s*)*[:：]', body)
+                            
+                            # 万が一「商品：」で分割できなかった場合の救済措置
+                            if len(blocks) <= 1:
+                                blocks = ["", body]
+                                
+                            for block in blocks[1:]:
+                                # SKUの抽出
+                                sku_match = re.search(r'SKU(?:<[^>]*>)*[\s　]*(?:<[^>]*>)*[:：](?:<[^>]*>)*[\s　]*(?:<[^>]*>)*([A-Za-z0-9\-]+)', block)
+                                if not sku_match:
+                                    sku_match = re.search(r'(YG[A-Za-z0-9\-]+)', block)
+                                    if not sku_match:
+                                        # 件名からのフォールバック（分割できなかった単一注文などのため）
+                                        sku_match_subj = re.search(r'(YG[A-Za-z0-9\-]+)', subject)
+                                        if sku_match_subj and len(blocks) <= 2:
+                                            sku = sku_match_subj.group(1).strip()
+                                        else:
+                                            continue
+                                    else:
+                                        sku = sku_match.group(1).strip()
+                                else:
+                                    sku = sku_match.group(1).strip()
+                                    
+                                if not sku.startswith('YG'):
+                                    continue
+                                
+                                # 商品名の抽出 (ブロックの先頭)
+                                product_name = ""
+                                if len(blocks) > 1:
+                                    p_match = re.match(r'[\s　]*(?:<[^>]*>)*([^\n\r<]+)', block)
+                                    if p_match:
+                                        product_name = p_match.group(1).strip()
+                                        
+                                if not product_name:
+                                    # 以前のフォールバック
+                                    p_match = re.search(r'(?:商品|商品名)\s*[:：]\s*([^\n\r]+)', body)
+                                    if p_match:
+                                        product_name = p_match.group(1).strip()
+                                    else:
+                                        product_name = subject
+                                        if '注文確定' in product_name:
+                                            product_name = product_name.split('注文確定')[-1]
+                                            
+                                # 商品名クリーニング
+                                product_name = re.sub(r'^\s*[\-\:]?\s*出品者出荷のご注文\s*[\-\:]?\s*', '', product_name)
+                                product_name = re.sub(r'^[\s:\-]*', '', product_name)
+                                product_name = re.sub(r'^(?:SKU\s*[:\-]?\s*)?[A-Za-z0-9\-_]+\s+', '', product_name)
+                                product_name = re.sub(r'\s*\[Tankobon.*', '', product_name, flags=re.IGNORECASE)
+                                product_name = re.sub(r'\s*\[JP Oversized.*', '', product_name, flags=re.IGNORECASE)
+                                product_name = re.sub(r'\s*\[(?:単行本|文庫|ペーパーバック|大型本|新書)\].*', '', product_name)
+                                product_name = re.sub(r'\s*\((?:単行本|文庫|ペーパーバック|大型本|新書)\).*', '', product_name)
+                                product_name = re.sub(r'^[:：\s]*(?:SKU)?[:：\s]*YG[A-Za-z0-9\-]+[\s:：\-]*', '', product_name, flags=re.IGNORECASE)
+                                product_name = re.sub(r'^[:：\-\s]+', '', product_name).strip()
+                                product_name = re.sub(r'<[^>]+>', '', product_name).strip()
+                                
+                                # 数量の抽出
+                                qty_match = re.search(r'数\s*量(?:<[^>]*>|[^0-9])*?([0-9]+)', block)
+                                if qty_match:
+                                    quantity_val = int(qty_match.group(1))
+                                    if quantity_val > 1:
+                                        quantity_display = f"🚨 {quantity_val}冊"
+                                    else:
+                                        quantity_display = "1"
+                                else:
+                                    idx = block.find('数')
+                                    if idx != -1:
+                                        debug_text = block[idx:idx+40].replace('\n', ' ')
+                                        quantity_display = f"⚠️ {debug_text}"
+                                    else:
+                                        quantity_display = "⚠️ 本文に'数'が存在しません"
+                                        
+                                orders.append({
+                                    "受信日時": formatted_date,
+                                    "プラットフォーム": "📦 Amazon",
+                                    "SKU": sku,
+                                    "数量": quantity_display,
+                                    "商品名": product_name.strip(),
+                                    "ステータス": "🔴 未発注_八木"
+                                })
+                                
+                        # ② メルカリShopsの注文判定
+                        elif '【メルカリShops】' in subject:
+                            if ('発送' in subject or '購入' in subject) and 'メッセージ' not in subject:
+                                if 'YG' not in body and '商品管理コード : YG' not in body:
+                                    continue
+                                    
+                                # メルカリも複数商品を考慮して分割
+                                blocks = re.split(r'(?:商品名)\s*(?:<[^>]*>\s*)*[:：]', body)
+                                
+                                if len(blocks) <= 1:
+                                    blocks = ["", body]
+                                    
+                                for block in blocks[1:]:
+                                    # SKUの抽出
+                                    sku_match = re.search(r'(YG[A-Za-z0-9\-]+)', block)
+                                    if not sku_match:
+                                        if len(blocks) <= 2:
+                                            sku_match = re.search(r'(YG[A-Za-z0-9\-]+)', body)
+                                            if not sku_match:
+                                                continue
+                                        else:
+                                            continue
+                                            
+                                    sku = sku_match.group(1).strip()
+                                    if not sku.startswith('YG'):
+                                        continue
+                                        
+                                    p_match = re.match(r'[\s　]*(?:<[^>]*>)*([^\n\r]+)', block)
+                                    if p_match and len(blocks) > 1:
+                                        product_name = p_match.group(1).strip()
+                                    else:
+                                        subj_match = re.search(r'「(.*?)」', subject)
+                                        product_name = subj_match.group(1) if subj_match else subject.replace('【メルカリShops】', '')
+
+                                    product_name = re.sub(r'<[^>]+>', '', product_name).strip()
+                                    
+                                    quantity_display = "1"
+                                    
+                                    orders.append({
+                                        "受信日時": formatted_date,
+                                        "プラットフォーム": "🔴 メルカリShops",
+                                        "SKU": sku,
+                                        "数量": quantity_display,
+                                        "商品名": product_name,
+                                        "ステータス": "🔴 未発注_八木"
+                                    })
+                        
+                        mail.logout()
+            return count, None
+        return 0, None
+    except Exception as e:
+        return None, str(e)
+
+# 未読数の取得を実行
+muumuu_count, muumuu_error = get_unread_count("muumuu")
+muumuu_badge = ""
+if muumuu_error:
+    st.sidebar.error(f"独自ドメイン連携エラー: {muumuu_error}")
+elif muumuu_count is not None:
+    muumuu_badge = f" 🔴 **{muumuu_count}**" if muumuu_count > 0 else " 🟢"
+
+gmail_kiyota_count, gmail_kiyota_error = get_unread_count("gmail_kiyota")
+gmail_kiyota_badge = ""
+if gmail_kiyota_error:
+    st.sidebar.error(f"Gmail(きよた)連携エラー: {gmail_kiyota_error}")
+elif gmail_kiyota_count is not None:
+    gmail_kiyota_badge = f" 🔴 **{gmail_kiyota_count}**" if gmail_kiyota_count > 0 else " 🟢"
+
+gmail_kiyotaka_count, gmail_kiyotaka_error = get_unread_count("gmail_kiyotaka")
+gmail_kiyotaka_badge = ""
+if gmail_kiyotaka_error:
+    st.sidebar.error(f"Gmail(清隆)連携エラー: {gmail_kiyotaka_error}")
+elif gmail_kiyotaka_count is not None:
+    gmail_kiyotaka_badge = f" 🔴 **{gmail_kiyotaka_count}**" if gmail_kiyotaka_count > 0 else " 🟢"
+
+yahoo_count, yahoo_error = get_unread_count("yahoo")
+yahoo_badge = ""
+if yahoo_error:
+    st.sidebar.error(f"Yahoo!連携エラー: {yahoo_error}")
+elif yahoo_count is not None:
+    yahoo_badge = f" 🔴 **{yahoo_count}**" if yahoo_count > 0 else " 🟢"
+
+# Google自動翻訳を無効化するメタタグを挿入
+st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
+
+# カスタムCSS（クリーンなライトモードUI）
+st.markdown("""
+<style>
+    /* アプリ全体の背景と基本文字色 */
+    .stApp {
+        background-color: #FFFFFF;
+        color: #1F2937;
+    }
+    
+    /* サイドバーの背景 */
+    [data-testid="stSidebar"] {
+        background-color: #F8F9FA;
+        border-right: 1px solid #E5E7EB;
+    }
+    
+    /* ヘッダーデザイン */
+    .main-header {
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: #111827;
+        letter-spacing: 1px;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    
+    /* スローガン */
+    .slogan {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #6B7280;
+        font-style: italic;
+        margin-bottom: 2rem;
+        letter-spacing: 0.5px;
+    }
+    
+    /* メトリック（KPI）の文字色 */
+    [data-testid="stMetricValue"] {
+        color: #1F2937 !important;
+    }
+    [data-testid="stMetricDelta"] {
+        color: #10B981 !important;
+    }
+    
+    /* テーブルのデザイン調整 */
+    .stDataFrame {
+        border: 1px solid #E5E7EB;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# サイドバー
+st.sidebar.title("TRICK DROP ⚡️")
+st.sidebar.markdown("**NAVIGATION**")
+
+pages = [
+    "🎰 司令室 (メイン)", 
+    "📚 YGシステム (自動受注リスト)", 
+    # "未発送の注文 (Amazon)",
+    "📖 国内有在庫 (千葉・神田)", 
+    "🌐 B28コマンド (越境プレ値)"
+]
+
+# URLパラメータから現在のページを取得してデフォルト選択にする
+default_index = 0
+if "page" in st.query_params:
+    try:
+        default_index = pages.index(st.query_params["page"])
+    except ValueError:
+        pass
+
+page = st.sidebar.radio("", pages, index=default_index)
+
+# 選択されたページをURLパラメータに保存（リロード対策）
+st.query_params["page"] = page
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🔗 クイックアクセス**")
+st.sidebar.markdown("- [📦 Amazon Seller Central](https://sellercentral.amazon.co.jp/)")
+st.sidebar.markdown("- [🛍️ メルカリShops](https://mercari-shops.com/seller/shops)")
+st.sidebar.markdown("- [🛒 Qoo10（QSM）](https://qsm.qoo10.jp/gmkt.inc.gsm.web/default.aspx)")
+st.sidebar.markdown("- [📚 日本の古本屋](https://www.kosho.or.jp/koshoadmin/)")
+st.sidebar.markdown("- [🔨 ヤフオク!](https://auctions.yahoo.co.jp/my)")
+st.sidebar.markdown("- [⚙️ AppTool](https://apptool.jp/mypage)")
+st.sidebar.markdown("- [🔴 メルカリ](https://jp.mercari.com/)")
+st.sidebar.markdown("- [📊 Amazon KDP レポート](https://kdpreports.amazon.co.jp/dashboard)")
+st.sidebar.markdown("- [🖨️ ラベル屋さん](https://www.labelyasan.com/)")
+st.sidebar.markdown("- [🔍 駿河屋あんしん買取](https://www.suruga-ya.jp/kaitori/search_buy?category=&search_word=)")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🛒 仕入れ先**")
+st.sidebar.markdown("- [📖 八木書店バーゲンブック](https://www.books-yagi.co.jp/bb/)")
+st.sidebar.markdown("- [🐟 魚住書店](https://www.uozumishoten.jp/cart.cgi)")
+st.sidebar.markdown("- [🏢 三協社](http://book-sankyo.co.jp/)")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**✉️ メールボックス**")
+st.sidebar.markdown(f"- [✉️ 独自ドメイン (メイン)]({f'https://webmail.muumuu-domain.com/mail/INBOX'}){muumuu_badge}")
+st.sidebar.markdown(f"- [📧 Gmail (きよた書店)](https://mail.google.com/mail/u/0/){gmail_kiyota_badge}")
+st.sidebar.markdown(f"- [📧 Gmail (清隆)](https://mail.google.com/mail/u/1/){gmail_kiyotaka_badge}")
+
+st.sidebar.markdown(f"- [ Yahoo!メール](https://mail.yahoo.co.jp/){yahoo_badge}")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🏦 銀行・財務**")
+st.sidebar.markdown("- [🏧 GMOあおぞらネット銀行](https://sso.gmo-aozora.com/b2c/login?service=https%3A%2F%2Fbank.gmo-aozora.com%2Fbank)")
+st.sidebar.markdown("- [📁 財務フォルダ (Google Drive)](https://drive.google.com/drive/u/0/folders/1lxnbNFHyLMLjL0RfcwvL3xqufuotdNAT)")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🚚 配送・物流**")
+st.sidebar.markdown("- [🐈‍⬛ ヤマトビジネスメンバーズ](https://bmypage.kuronekoyamato.co.jp/bmypage/servlet/jp.co.kuronekoyamato.wur.hmp.servlet.user.HMPLGI0010JspServlet)")
+st.sidebar.markdown("- [📮 クリックポスト](https://clickpost.jp/)")
+st.sidebar.markdown("- [🏣 郵便局 (荷物問合せ)](https://www.post.japanpost.jp/)")
+st.sidebar.markdown("- [🏣 郵便局集荷サービス](https://mgr.post.japanpost.jp/C20P02Action_Login_PC.do?ssoparam=1&termtype=0)")
+st.sidebar.markdown("- [🚛 西濃運輸](https://www.seino.co.jp/seino/)")
+st.sidebar.markdown("- [🏃 佐川急便](https://www.sagawa-exp.co.jp/)")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**🌍 越境EC**")
+st.sidebar.markdown("- [🇸🇬 Shopee SG](https://seller.shopee.sg/)")
+st.sidebar.markdown("- [🇹🇼 Shopee TW](https://seller.shopee.tw/)")
+st.sidebar.markdown("- [🌎 eBay](https://www.ebay.com/)")
+
+# 共通データ生成用
+np.random.seed(42)
+months = [f"2026-{m:02d}" for m in range(1, 6)]
+
+# 自動で注文メールを取得する関数
+@st.cache_data(ttl=600)  # 10分間キャッシュ
+def get_recent_orders():
+    orders = []
+    try:
+        user = st.secrets["email"]["gmail_kiyota_user"]
+        password = st.secrets["email"]["gmail_kiyota_pass"]
+        server = "imap.gmail.com"
+        
+        mail = imaplib.IMAP4_SSL(server)
+        mail.login(user, password)
+        mail.select("inbox")
+        
+        # 過去2週間分のメールIDをサーバー側で絞り込んで取得
+        from datetime import datetime, timedelta
+        search_date = (datetime.now() - timedelta(days=14)).strftime("%d-%b-%Y")
+        status, response = mail.search(None, 'SINCE', search_date)
+        
+        if status == 'OK':
+            email_ids = response[0].split()
+            latest_ids = email_ids[-1000:]
+            
+            # まとめて取得 (1度に100件ずつリクエストして高速化)
+            chunk_size = 100
+            for i in range(len(latest_ids)-1, -1, -chunk_size):
+                start_idx = max(0, i - chunk_size + 1)
+                chunk_ids = latest_ids[start_idx : i + 1]
+                
+                # 新しい順に処理するためチャンク内を反転
+                chunk_ids = chunk_ids[::-1]
+                ids_str = b",".join(chunk_ids)
+                
+                # RFC822でメール本文をまとめて取得
+                status, data = mail.fetch(ids_str, '(BODY.PEEK[])')
+                if status != 'OK': continue
+                
+                for response_part in data:
+                    if isinstance(response_part, tuple):
+                        raw_email = response_part[1]
+                        msg = email.message_from_bytes(raw_email)
+                        
+                        # 件名のデコード
+                        subject_tuple = decode_header(msg['Subject'])[0]
+                        subject = subject_tuple[0]
+                        encoding = subject_tuple[1]
+                        if isinstance(subject, bytes):
+                            subject = subject.decode(encoding if encoding else 'utf-8', errors='ignore')
+                            
+                        # 日付のフォーマット
+                        date_str = msg.get('Date', '')
+                        try:
+                            dt = parsedate_to_datetime(date_str)
+                            from datetime import timezone
+                            jst = timezone(timedelta(hours=9))
+                            dt_jst = dt.astimezone(jst)
+                            formatted_date = dt_jst.strftime('%Y/%m/%d %H:%M')
+                        except:
+                            formatted_date = date_str
+                        
+                        # 送信元の確認
+                        from_addr = msg.get('From', '')
+                        
+                        # 本文を取得 (メルカリ等の商品管理コード確認用)
+                        body = ""
+                        if msg.is_multipart():
+                            for part in msg.walk():
+                                if part.get_content_type() in ['text/plain', 'text/html']:
+                                    body_bytes = part.get_payload(decode=True)
+                                    if body_bytes:
+                                        charset = part.get_content_charset() or 'utf-8'
+                                        try:
+                                            body += body_bytes.decode(charset, errors='ignore') + "\n"
+                                        except:
+                                            body += body_bytes.decode('utf-8', errors='ignore') + "\n"
+                        else:
+                            body_bytes = msg.get_payload(decode=True)
+                            if body_bytes:
+                                charset = msg.get_content_charset() or 'utf-8'
+                                try:
+                                    body = body_bytes.decode(charset, errors='ignore')
+                                except:
+                                    body = body_bytes.decode('utf-8', errors='ignore')
+                        
+                        # ① Amazonの注文判定
+                        if '注文確定' in subject and 'amazon.co.jp' in from_addr.lower():
                             # YGから始まるSKUのみを対象とする
                             if not re.search(r'[:\s]YG', subject) and 'YG' not in body:
                                 continue
