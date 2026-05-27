@@ -179,7 +179,6 @@ st.sidebar.markdown("- [🔨 ヤフオク!](https://auctions.yahoo.co.jp/my)")
 st.sidebar.markdown("- [⚙️ AppTool](https://apptool.jp/mypage)")
 st.sidebar.markdown("- [🔴 メルカリ](https://jp.mercari.com/)")
 st.sidebar.markdown("- [📊 Amazon KDP レポート](https://kdpreports.amazon.co.jp/dashboard)")
-st.sidebar.markdown("- [🏷️ プライスター](https://jp3.pricetar.com/seller)")
 st.sidebar.markdown("- [🖨️ ラベル屋さん](https://www.labelyasan.com/)")
 st.sidebar.markdown("- [🔍 駿河屋あんしん買取](https://www.suruga-ya.jp/kaitori/search_buy?category=&search_word=)")
 
