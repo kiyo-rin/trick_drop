@@ -286,15 +286,14 @@ def get_recent_orders():
                         body = ""
                         if msg.is_multipart():
                             for part in msg.walk():
-                                if part.get_content_type() == 'text/plain':
+                                if part.get_content_type() in ['text/plain', 'text/html']:
                                     body_bytes = part.get_payload(decode=True)
                                     if body_bytes:
                                         charset = part.get_content_charset() or 'utf-8'
                                         try:
-                                            body = body_bytes.decode(charset, errors='ignore')
+                                            body += body_bytes.decode(charset, errors='ignore') + "\n"
                                         except:
-                                            body = body_bytes.decode('utf-8', errors='ignore')
-                                    break
+                                            body += body_bytes.decode('utf-8', errors='ignore') + "\n"
                         else:
                             body_bytes = msg.get_payload(decode=True)
                             if body_bytes:
