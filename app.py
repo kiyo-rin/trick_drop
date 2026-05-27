@@ -345,14 +345,21 @@ def get_recent_orders():
                             product_name = re.sub(r'^[:：\-\s]+', '', product_name).strip()
                             
                             # 数量の抽出
-                            quantity_display = "⚠️ 抽出エラー"
-                            qty_match = re.search(r'数量[^0-9]*([0-9]+)', body)
+                            qty_match = re.search(r'数\s*量(?:<[^>]*>|[^0-9])*?([0-9]+)', body)
                             if qty_match:
                                 quantity_val = int(qty_match.group(1))
                                 if quantity_val > 1:
                                     quantity_display = f"🚨 {quantity_val}冊"
                                 else:
                                     quantity_display = "1"
+                            else:
+                                idx = body.find('数')
+                                if idx != -1:
+                                    # 「数」の文字から後ろ40文字を画面に出力して原因を探る
+                                    debug_text = body[idx:idx+40].replace('\n', ' ')
+                                    quantity_display = f"⚠️ {debug_text}"
+                                else:
+                                    quantity_display = "⚠️ 本文に'数'が存在しません"
                             
                             orders.append({
                                 "受信日時": formatted_date,
