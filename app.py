@@ -516,6 +516,8 @@ elif page == "📚 YGシステム (自動受注リスト)":
     
     with st.spinner('最新の注文メールを読み込んでいます...'):
         orders_df = get_recent_orders()
+        # text/plain と text/html の両方から抽出される重複を排除
+        orders_df = orders_df.drop_duplicates(subset=["受信日時", "SKU"], keep='first')
         
     if not orders_df.empty:
         st.success(f"最新の注文データを {len(orders_df)} 件 自動取得しました！")
