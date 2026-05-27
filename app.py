@@ -650,7 +650,7 @@ elif page == "📚 YGシステム (自動受注リスト)":
                 pass
         
         df = filtered_df[view_cols].copy()
-df["✅ 発注済"] = df.apply(lambda row: status_dict.get(f"{row['受信日時']}_{row['SKU']}", False), axis=1)
+        df["✅ 発注済"] = df.apply(lambda row: status_dict.get(f"{row['受信日時']}_{row['SKU']}", False), axis=1)
         
         st.markdown("<h3 style='color: #E32B36;'>⚠️ 【重要】チェック後の弾かれを完全に防ぐフォーム形式</h3>", unsafe_allow_html=True)
         st.markdown("👇 **チェックを入れてもすぐには裏で保存されません。ポンポン連続でチェックを入れて、最後に下の「💾 変更を確定する」ボタンを押してください💡**")
