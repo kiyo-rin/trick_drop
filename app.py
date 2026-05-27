@@ -343,6 +343,9 @@ def get_recent_orders():
                             # さらにもう一度、先頭に残った不要な記号(:や-など)を確実に消す
                             product_name = re.sub(r'^[:：\-\s]+', '', product_name).strip()
                             
+                            # HTMLタグを除去するクリーニング処理
+                            product_name = re.sub(r'<[^>]+>', '', product_name).strip()
+                            
                             # 数量の抽出
                             qty_match = re.search(r'数\s*量(?:<[^>]*>|[^0-9])*?([0-9]+)', body)
                             if qty_match:
@@ -383,6 +386,9 @@ def get_recent_orders():
                                     
                                 match = re.search(r'「(.*?)」', subject)
                                 product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
+                                
+                                # HTMLタグを除去するクリーニング処理
+                                product_name = re.sub(r'<[^>]+>', '', product_name).strip()
                                 
                                 # 数量の抽出 (メルカリShops)
                                 # メルカリShopsのメールには数量が存在しないため、無条件で1とする
