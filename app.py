@@ -649,8 +649,18 @@ elif page == "📚 YGシステム (自動受注リスト)":
             except:
                 pass
         
-        df = filtered_df[view_cols].copy()
-        df["✅ 発注済"] = df.apply(lambda row: status_dict.get(f"{row['受信日時']}_{row['SKU']}", False), axis=1)
+        # まず✅ 発注済以外の列でdfを作成
+        base_cols = [c for c in view_cols if c != "✅ 発注済" and c in filtered_df.columns]
+        df = filtered_df[base_cols].copy()
+        
+        # チェック列を追加
+        df.insert(0, "✅ 発注済", df.apply(lambda row: status_dict.get(f"{row['受信日時']}_{row['SKU']}", False), axis=1))
+        
+        # 並び替え
+        missing_cols = [c for c in view_cols if c not in df.columns]
+        for c in missing_cols:
+            df[c] = ""
+        df = df[view_cols]
         
         st.markdown("<h3 style='color: #E32B36;'>⚠️ 【重要】チェック後の弾かれを完全に防ぐフォーム形式</h3>", unsafe_allow_html=True)
         st.markdown("👇 **チェックを入れてもすぐには裏で保存されません。ポンポン連続でチェックを入れて、最後に下の「💾 変更を確定する」ボタンを押してください💡**")
