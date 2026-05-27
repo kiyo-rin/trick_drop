@@ -346,10 +346,9 @@ def get_recent_orders():
                             
                             # 数量の抽出
                             quantity_display = "⚠️ 抽出エラー"
-                            qty_match = re.search(r'数量[\s　\n\r]*[:：]?[\s　\n\r]*([0-9０-９]+)', body)
+                            qty_match = re.search(r'数量[^0-9]*([0-9]+)', body)
                             if qty_match:
-                                import unicodedata
-                                quantity_val = int(unicodedata.normalize('NFKC', qty_match.group(1)))
+                                quantity_val = int(qty_match.group(1))
                                 if quantity_val > 1:
                                     quantity_display = f"🚨 {quantity_val}冊"
                                 else:
