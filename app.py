@@ -555,7 +555,7 @@ elif page == "📚 YGシステム (自動受注リスト)":
         sku_to_isbn = load_sku_isbn_map()
         
         # チェック状態を保持するための列を用意
-            orders_df["_id"] = orders_df["受信日時"] + "_" + orders_df["SKU"]
+        orders_df["_id"] = orders_df["受信日時"] + "_" + orders_df["SKU"]
         
         # URL作成用関数 (ISBNがわかればそれを使う、わからなければクリーンな別名を使う)
         import urllib.parse
