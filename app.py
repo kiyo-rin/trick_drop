@@ -346,7 +346,7 @@ def get_recent_orders():
                             
                             # 数量の抽出
                             quantity = "1"
-                            qty_match = re.search(r'数量\s*[:：]\s*(\d+)', body)
+                            qty_match = re.search(r'数量[\s　\n\r]*[:：][\s　\n\r]*(\d+)', body)
                             if qty_match:
                                 quantity = qty_match.group(1)
                                 
@@ -381,7 +381,7 @@ def get_recent_orders():
                                 
                                 # 数量の抽出 (メルカリShops)
                                 quantity = "1"
-                                qty_match = re.search(r'(?:数量|購入数|商品個数)\s*[:：]\s*(\d+)', body)
+                                qty_match = re.search(r'(?:数量|購入数|商品個数)[\s　\n\r]*[:：][\s　\n\r]*(\d+)', body)
                                 if qty_match:
                                     quantity = qty_match.group(1)
                                     
