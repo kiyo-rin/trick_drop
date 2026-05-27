@@ -345,15 +345,15 @@ def get_recent_orders():
                             product_name = re.sub(r'^[:：\-\s]+', '', product_name).strip()
                             
                             # 数量の抽出
-                            quantity = "1"
-                            qty_match = re.search(r'数量[\s　\n\r]*[:：][\s　\n\r]*(\d+)', body)
+                            quantity_display = "⚠️ 抽出エラー"
+                            qty_match = re.search(r'数量[\s　\n\r]*[:：]?[\s　\n\r]*([0-9０-９]+)', body)
                             if qty_match:
-                                quantity = qty_match.group(1)
-                                
-                            if int(quantity) > 1:
-                                quantity_display = f"🚨 {quantity}冊"
-                            else:
-                                quantity_display = "1"
+                                import unicodedata
+                                quantity_val = int(unicodedata.normalize('NFKC', qty_match.group(1)))
+                                if quantity_val > 1:
+                                    quantity_display = f"🚨 {quantity_val}冊"
+                                else:
+                                    quantity_display = "1"
                             
                             orders.append({
                                 "受信日時": formatted_date,
@@ -380,15 +380,15 @@ def get_recent_orders():
                                 product_name = match.group(1) if match else subject.replace('【メルカリShops】', '')
                                 
                                 # 数量の抽出 (メルカリShops)
-                                quantity = "1"
-                                qty_match = re.search(r'(?:数量|購入数|商品個数)[\s　\n\r]*[:：][\s　\n\r]*(\d+)', body)
+                                quantity_display = "⚠️ 抽出エラー"
+                                qty_match = re.search(r'(?:数量|購入数|商品個数)[\s　\n\r]*[:：]?[\s　\n\r]*([0-9０-９]+)', body)
                                 if qty_match:
-                                    quantity = qty_match.group(1)
-                                    
-                                if int(quantity) > 1:
-                                    quantity_display = f"🚨 {quantity}冊"
-                                else:
-                                    quantity_display = "1"
+                                    import unicodedata
+                                    quantity_val = int(unicodedata.normalize('NFKC', qty_match.group(1)))
+                                    if quantity_val > 1:
+                                        quantity_display = f"🚨 {quantity_val}冊"
+                                    else:
+                                        quantity_display = "1"
                                 
                                 orders.append({
                                     "受信日時": formatted_date,
