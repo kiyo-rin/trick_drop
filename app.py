@@ -631,18 +631,6 @@ if page == "🎰 司令室 (メイン)":
             use_container_width=True
         )
 
-    # --- デバッグ情報出力 ---
-    try:
-        st.markdown("---")
-        st.write("▼ デバッグ情報")
-        st.write(f"len(orders_df) ：{len(raw_orders_df)}")
-        st.write(f"orders_df['受注日時'].min() ：{raw_orders_df['受注日時'].min()}")
-        st.write(f"len(yagi_df) ：{len(yagi_df)}")
-        st.write(f"orders_df と yagi_df を ISBN でマージした直後のDataFrameの件数 ：{len(pd.merge(raw_orders_df, yagi_df, on='ISBN', how='inner'))}")
-        st.write("ディレクトリ内のファイル一覧:", os.listdir(base_dir))
-    except Exception as e:
-        pass
-
 elif page == "📚 YGシステム (自動受注リスト)":
     st.markdown('<div class="main-header">📚 YGシステム (自動受注リスト)</div>', unsafe_allow_html=True)
     st.markdown("きよた書店のGmailから、最新のAmazonとメルカリShopsの注文を自動抽出しています。")
