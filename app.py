@@ -150,10 +150,8 @@ st.sidebar.markdown("**NAVIGATION**")
 
 pages = [
     "🎰 司令室 (メイン)", 
-    "📚 YGシステム (自動受注リスト)", 
+    "📚 YGシステム (自動受注リスト)"
     # "未発送の注文 (Amazon)",
-    "📖 国内有在庫 (千葉・神田)", 
-    "🌐 B28コマンド (越境プレ値)"
 ]
 
 # URLパラメータから現在のページを取得してデフォルト選択にする
@@ -719,38 +717,3 @@ elif page == "📚 YGシステム (自動受注リスト)":
 # elif page == " 未発送の注文 (Amazon)":
 #     render_amazon_orders_page()
 
-elif page == "📖 国内有在庫 (千葉・神田)":
-    st.markdown('<div class="main-header">📖 国内有在庫 (千葉古書・神田)</div>', unsafe_allow_html=True)
-    
-    st.markdown("### 売上推移")
-    sales_data = pd.DataFrame({"月": months, "売上": [150000, 180000, 120000, 220000, 300000]})
-    fig = px.line(sales_data, x="月", y="売上", markers=True, color_discrete_sequence=["#10B981"])
-    fig.update_traces(line=dict(width=3), marker=dict(size=8))
-    st.plotly_chart(update_modern_layout(fig), use_container_width=True)
-    
-    st.markdown("### 未発送リスト")
-    inventory_tasks = pd.DataFrame({
-        "プラットフォーム": ["メルカリ", "Amazon", "ヤフオク", "メルカリ"],
-        "書籍名": ["江戸名所図会", "医学大辞典", "浮世絵大全", "日本刀大鑑"],
-        "保管場所": ["A棚-01", "C棚-05", "B棚-02", "A棚-03"],
-        "ステータス": ["📦 梱包待ち", "🛒 ピッキング待ち", "📦 梱包待ち", "🛒 ピッキング待ち"]
-    })
-    st.dataframe(inventory_tasks, use_container_width=True)
-
-elif page == "🌐 B28コマンド (越境プレ値)":
-    st.markdown('<div class="main-header">🌐 B28コマンド (越境・超高利益)</div>', unsafe_allow_html=True)
-    
-    st.markdown("### 売上推移")
-    sales_data = pd.DataFrame({"月": months, "売上": [2800000, 3500000, 3200000, 4800000, 5200000]})
-    fig = px.area(sales_data, x="月", y="売上", color_discrete_sequence=["#8B5CF6"])
-    st.plotly_chart(update_modern_layout(fig), use_container_width=True)
-    
-    st.markdown("### 未発送タスクリスト (JDM釣具 等)")
-    b28_tasks = pd.DataFrame({
-        "プラットフォーム": ["Shopee SG", "Shopee SG", "Shopee SG"],
-        "商品名": ["Shimano Stella SW 18000HG", "Daiwa Saltiga 20000-H", "Gamakatsu Master Model II"],
-        "想定利益 (JPY)": ["¥ 45,000", "¥ 52,000", "¥ 68,000"],
-        "タスク": ["輸出インボイス作成", "DHL集荷予約", "パッキング（厳重）"],
-        "ステータス": ["⚠️ 手配中", "🔴 未着手", "🟢 完了"]
-    })
-    st.dataframe(b28_tasks, use_container_width=True)
