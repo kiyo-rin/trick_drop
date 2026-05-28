@@ -505,9 +505,15 @@ if page == "🎰 司令室 (メイン)":
         # 2. 最新の八木書店在庫データを取得
         yagi_df = pd.DataFrame()
         try:
-            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            parent_dir = os.path.dirname(current_dir)
+            
             # Yagiスクレイピング結果の json を探す
-            json_files = glob.glob(os.path.join(parent_dir, "books_upload_*.json"))
+            # Streamlit Cloud上（リポジトリのルート）とローカル環境（親ディレクトリ）の両方を探索する
+            json_files = glob.glob(os.path.join(current_dir, "books_upload_*.json"))
+            if not json_files:
+                json_files = glob.glob(os.path.join(parent_dir, "books_upload_*.json"))
+                
             if json_files:
                 latest_json = max(json_files, key=os.path.getctime)
                 with open(latest_json, "r", encoding="utf-8") as f:
