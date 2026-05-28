@@ -540,8 +540,9 @@ if page == "🎰 司令室 (メイン)":
                 alert_targets = alert_targets[(alert_targets['在庫数'] >= 1) & (alert_targets['在庫数'] <= 20)]
 
     # --- UI表示1: バズ検知 ---
+    st.markdown("### 🚨 緊急ハイジャック推奨（バズ商品）")
     if alert_targets.empty:
-        st.info("🚨 現在、緊急ハイジャック推奨のバズ商品はありません")
+        st.write("現在、該当する商品はありません")
     else:
         for idx, row in alert_targets.iterrows():
             isbn = row['ISBN']
