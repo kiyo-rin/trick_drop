@@ -639,15 +639,16 @@ if page == "🎰 司令室 (メイン)":
                 """)
                 asin = isbn13_to_10(isbn)
                 amazon_url = f"https://www.amazon.co.jp/dp/{asin}"
-                st.markdown(f'''
-<div style="display: flex; gap: 10px; margin-bottom: 20px;">
-    <a href="{url}" target="_blank" style="padding: 8px 16px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">➔ 八木書店で買い占める</a>
-    <a href="{amazon_url}" target="_blank" style="padding: 8px 16px; background-color: #f3a847; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">➔ Amazonで確認</a>
-</div>
-''', unsafe_allow_html=True)
-                if st.button("⏳ 7日間見送り", key=f"snooze_alert1_{isbn}"):
-                    add_snooze_isbn(isbn)
-                    st.rerun()
+                
+                col1, col2, col3, _ = st.columns([2.2, 2.2, 1.8, 4])
+                with col1:
+                    st.markdown(f'<a href="{url}" target="_blank" style="display: block; padding: 6px 12px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; text-align: center; margin-bottom: 10px;">➔ 八木書店で買い占める</a>', unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f'<a href="{amazon_url}" target="_blank" style="display: block; padding: 6px 12px; background-color: #f3a847; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; text-align: center; margin-bottom: 10px;">➔ Amazonで確認</a>', unsafe_allow_html=True)
+                with col3:
+                    if st.button("⏳ 7日間見送り", key=f"snooze_alert1_{isbn}", use_container_width=True):
+                        add_snooze_isbn(isbn)
+                        st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
