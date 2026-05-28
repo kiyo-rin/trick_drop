@@ -231,14 +231,14 @@ def get_recent_orders():
         mail.login(user, password)
         mail.select("inbox")
         
-        # 過去2週間分のメールIDをサーバー側で絞り込んで取得
+        # 過去60日分のメールIDをサーバー側で絞り込んで取得
         from datetime import datetime, timedelta
-        search_date = (datetime.now() - timedelta(days=14)).strftime("%d-%b-%Y")
+        search_date = (datetime.now() - timedelta(days=60)).strftime("%d-%b-%Y")
         status, response = mail.search(None, 'SINCE', search_date)
         
         if status == 'OK':
             email_ids = response[0].split()
-            latest_ids = email_ids[-1000:]
+            latest_ids = email_ids[-4000:]
             
             # まとめて取得 (1度に100件ずつリクエストして高速化)
             chunk_size = 100
@@ -463,8 +463,10 @@ if page == "🎰 司令室 (メイン)":
 
     now = datetime.now()
     threshold_time = now - timedelta(hours=48)
+    threshold_30d = now - timedelta(days=30)
+    threshold_60d = now - timedelta(days=60)
     
-    with st.spinner("バズ検知アラートデータを集計中..."):
+    with st.spinner("アラート用のデータを集計中..."):
         # 1. 実際の注文データを取得
         try:
             raw_orders_df = get_recent_orders()
@@ -480,12 +482,21 @@ if page == "🎰 司令室 (メイン)":
                         sku_to_isbn = json.load(f)
                 
                 raw_orders_df['ISBN'] = raw_orders_df['SKU'].map(sku_to_isbn).fillna('')
-                # 48時間以内かつISBNが存在するものに絞る
-                recent_orders = raw_orders_df[(raw_orders_df['受注日時'] >= threshold_time) & (raw_orders_df['ISBN'] != '')]
+                # ISBNが存在するものに絞る
+                valid_orders = raw_orders_df[raw_orders_df['ISBN'] != '']
+                recent_orders = valid_orders[valid_orders['受注日時'] >= threshold_time]
+                orders_30d = valid_orders[valid_orders['受注日時'] >= threshold_30d]
+                orders_60d = valid_orders[valid_orders['受注日時'] >= threshold_60d]
             else:
                 recent_orders = pd.DataFrame()
+                orders_30d = pd.DataFrame()
+                orders_60d = pd.DataFrame()
+                valid_orders = pd.DataFrame()
         except Exception as e:
             recent_orders = pd.DataFrame()
+            orders_30d = pd.DataFrame()
+            orders_60d = pd.DataFrame()
+            valid_orders = pd.DataFrame()
             st.warning("注文データの取得に失敗しました。")
 
         # 2. 最新の八木書店在庫データを取得
@@ -511,7 +522,12 @@ if page == "🎰 司令室 (メイン)":
         except Exception as e:
             pass
 
-    # --- アラート判定ロジック ---
+    def get_latest_product_names(orders_df):
+        # ISBNごとに最新の商品名を取得する
+        # 同じISBNでも商品名がブレる場合があるため、最初の1件を採用する
+        return orders_df.groupby('ISBN').first().reset_index()[['ISBN', '商品名']]
+
+    # --- アラート1: バズ検知判定ロジック ---
     alert_targets = pd.DataFrame()
     if not recent_orders.empty and not yagi_df.empty and 'ISBN' in recent_orders.columns and 'ISBN' in yagi_df.columns:
         order_counts = recent_orders.groupby('ISBN').size().reset_index(name='受注件数')
@@ -523,7 +539,7 @@ if page == "🎰 司令室 (メイン)":
                 # 在庫数が 1以上、かつ20以下
                 alert_targets = alert_targets[(alert_targets['在庫数'] >= 1) & (alert_targets['在庫数'] <= 20)]
 
-    # --- UI表示 ---
+    # --- UI表示1: バズ検知 ---
     if alert_targets.empty:
         st.info("🚨 現在、緊急ハイジャック推奨のバズ商品はありません")
     else:
@@ -542,6 +558,70 @@ if page == "🎰 司令室 (メイン)":
                 - **現在の八木書店在庫数**: 残り **{stock}** 冊
                 """)
                 st.markdown(f'<a href="{url}" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; margin-bottom: 20px;">➔ 八木書店で買い占める</a>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- アラート2: 予測型ハイジャック推奨（枯渇間近の刈り取り） ---
+    st.markdown("### 🦅 予測型ハイジャック推奨（枯渇間近の刈り取り）")
+    df_predictive = pd.DataFrame()
+    if not orders_60d.empty and not yagi_df.empty:
+        counts_60d = orders_60d.groupby('ISBN').size().reset_index(name='過去60日の販売数')
+        counts_60d = counts_60d[counts_60d['過去60日の販売数'] >= 5]
+        
+        if not counts_60d.empty:
+            df_predictive = pd.merge(counts_60d, yagi_df, on='ISBN')
+            if not df_predictive.empty:
+                df_predictive = df_predictive[(df_predictive['在庫数'] >= 1) & (df_predictive['在庫数'] <= 11)]
+                if not df_predictive.empty:
+                    product_names = get_latest_product_names(orders_60d)
+                    df_predictive = pd.merge(df_predictive, product_names, on='ISBN', how='left')
+                    df_predictive.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
+                    df_predictive = df_predictive.sort_values(by='過去60日の販売数', ascending=False)
+                    df_predictive = df_predictive[['商品名', '過去60日の販売数', '現在の八木在庫数', '発注URL']]
+
+    if df_predictive.empty:
+        st.write("現在、該当する商品はありません")
+    else:
+        st.dataframe(
+            df_predictive,
+            column_config={
+                "発注URL": st.column_config.LinkColumn("発注リンク", display_text="発注画面へ")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- アラート3: 送料無料ライン突破・買い足し推奨（安全圏） ---
+    st.markdown("### 🛒 送料無料ライン突破・買い足し推奨（安全圏）")
+    df_restock = pd.DataFrame()
+    if not orders_30d.empty and not yagi_df.empty:
+        counts_30d = orders_30d.groupby('ISBN').size().reset_index(name='過去30日の販売数')
+        counts_30d = counts_30d[counts_30d['過去30日の販売数'] >= 3]
+        
+        if not counts_30d.empty:
+            df_restock = pd.merge(counts_30d, yagi_df, on='ISBN')
+            if not df_restock.empty:
+                df_restock = df_restock[df_restock['在庫数'] >= 20]
+                if not df_restock.empty:
+                    product_names = get_latest_product_names(orders_30d)
+                    df_restock = pd.merge(df_restock, product_names, on='ISBN', how='left')
+                    df_restock.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
+                    df_restock = df_restock.sort_values(by='過去30日の販売数', ascending=False)
+                    df_restock = df_restock[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL']]
+
+    if df_restock.empty:
+        st.write("現在、該当する商品はありません")
+    else:
+        st.dataframe(
+            df_restock,
+            column_config={
+                "発注URL": st.column_config.LinkColumn("発注リンク", display_text="発注画面へ")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
 
 elif page == "📚 YGシステム (自動受注リスト)":
     st.markdown('<div class="main-header">📚 YGシステム (自動受注リスト)</div>', unsafe_allow_html=True)
