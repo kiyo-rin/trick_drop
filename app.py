@@ -453,7 +453,7 @@ def update_modern_layout(fig):
     return fig
 
 if page == "🎰 司令室 (メイン)":
-    st.markdown('<div class="main-header">🎰 司令室 (Command Center)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🎰 司令室</div>', unsafe_allow_html=True)
     st.markdown('<div class="slogan">TRICK DROP — 「ありえない成功を生み出す、仕掛けられた自販機」 ⚡️🎰</div>', unsafe_allow_html=True)
     
     # === バズ検知アラート機能 ===
