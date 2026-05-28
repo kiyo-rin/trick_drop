@@ -506,8 +506,11 @@ if page == "🎰 司令室 (メイン)":
         yagi_df = pd.DataFrame()
         base_dir = os.path.dirname(os.path.abspath(__file__))
         try:
-            # Yagiスクレイピング結果の json を探す
-            json_files = glob.glob(os.path.join(base_dir, "books_upload_*.json"))
+            # Yagiスクレイピング結果の json を探す (books_all_*.json または books_upload_*.json)
+            json_files = glob.glob(os.path.join(base_dir, "books_all_*.json"))
+            if not json_files:
+                json_files = glob.glob(os.path.join(base_dir, "books_upload_*.json"))
+                
             if not json_files:
                 st.error(f"ファイルが見つかりません。探索先: {base_dir}")
                 
@@ -515,8 +518,17 @@ if page == "🎰 司令室 (メイン)":
                 latest_json = max(json_files, key=os.path.getctime)
                 with open(latest_json, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    if "items" in data:
-                        yagi_df = pd.DataFrame(data["items"])
+                    if isinstance(data, dict):
+                        if "items" in data:
+                            yagi_df = pd.DataFrame(data["items"])
+                        elif "messages" in data:
+                            yagi_df = pd.DataFrame(data["messages"])
+                        else:
+                            yagi_df = pd.DataFrame.from_dict(data, orient='index').reset_index(drop=True)
+                    elif isinstance(data, list):
+                        yagi_df = pd.DataFrame(data)
+                        
+                    if not yagi_df.empty:
                         if 'isbn' in yagi_df.columns:
                             yagi_df.rename(columns={'isbn': 'ISBN'}, inplace=True)
                         if 'stock' in yagi_df.columns:
