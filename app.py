@@ -678,25 +678,32 @@ if page == "🎰 司令室 (メイン)":
     if df_predictive.empty:
         st.write("現在、該当する商品はありません")
     else:
-        # dataframeの代わりに各行にボタンを配置するためにst.columnsを使用
-        header = st.columns([4, 2, 2, 2, 2])
-        header[0].markdown("**商品名**")
-        header[1].markdown("**過去30日の販売数**")
-        header[2].markdown("**現在の八木在庫数**")
-        header[3].markdown("**発注 / 確認**")
-        header[4].markdown("**アクション**")
-        st.markdown("---")
-        
         for idx, row in df_predictive.iterrows():
-            cols = st.columns([4, 2, 2, 2, 2])
-            cols[0].write(row['商品名'])
-            cols[1].write(str(row['過去30日の販売数']))
-            cols[2].write(str(row['現在の八木在庫数']))
-            cols[3].markdown(f'<a href="{row["発注URL"]}" target="_blank">発注</a> / <a href="{row["Amazonで確認"]}" target="_blank">Amazon</a>', unsafe_allow_html=True)
-            if cols[4].button("⏳ 7日間見送り", key=f"snooze_pred_{row['ISBN']}"):
-                add_snooze_isbn(row['ISBN'])
-                st.rerun()
-            st.markdown("---")
+            isbn = row['ISBN']
+            product_name = row['商品名']
+            count = row['過去30日の販売数']
+            stock = int(row['現在の八木在庫数'])
+            url = row['発注URL']
+            
+            with st.container():
+                st.info("🦅 **枯渇間近！予測型ハイジャック推奨** 🦅")
+                st.markdown(f"""
+                - **商品名**: {product_name} (ISBN: {isbn})
+                - **過去30日の販売数**: {count}件
+                - **現在の八木書店在庫数**: 残り **{stock}** 冊
+                """)
+                asin = isbn13_to_10(isbn)
+                amazon_url = f"https://www.amazon.co.jp/dp/{asin}"
+                
+                col1, col2, col3, _ = st.columns([2.2, 2.2, 1.8, 4])
+                with col1:
+                    st.markdown(f'<a href="{url}" target="_blank" style="display: block; padding: 6px 12px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; text-align: center; margin-bottom: 10px;">➔ 八木書店で買い占める</a>', unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f'<a href="{amazon_url}" target="_blank" style="display: block; padding: 6px 12px; background-color: #f3a847; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; text-align: center; margin-bottom: 10px;">➔ Amazonで確認</a>', unsafe_allow_html=True)
+                with col3:
+                    if st.button("⏳ 7日間見送り", key=f"snooze_pred_{isbn}", use_container_width=True):
+                        add_snooze_isbn(isbn)
+                        st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
