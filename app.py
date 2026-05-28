@@ -459,34 +459,69 @@ if page == "🎰 司令室 (メイン)":
     # === バズ検知アラート機能 ===
     import pandas as pd
     from datetime import datetime, timedelta
+    import os, json, glob
 
-    # (モックデータ生成: 実運用時は実際のDBやAPIから取得する想定)
     now = datetime.now()
-    orders_df = pd.DataFrame([
-        {'受注日時': now - timedelta(hours=2), 'ISBN': '9784001111111', '商品名': 'バズり本A'},
-        {'受注日時': now - timedelta(hours=10), 'ISBN': '9784001111111', '商品名': 'バズり本A'},
-        {'受注日時': now - timedelta(hours=5), 'ISBN': '9784112222222', '商品名': '普通の売れ筋B'},
-    ])
-    yagi_df = pd.DataFrame([
-        {'ISBN': '9784001111111', '在庫数': 5, '発注URL': 'https://www.kosho.or.jp/products/list.php?mode=search&name=9784001111111'},
-        {'ISBN': '9784112222222', '在庫数': 100, '発注URL': 'https://www.kosho.or.jp/products/list.php?mode=search&name=9784112222222'},
-    ])
-    
-    # --- アラート判定ロジック ---
     threshold_time = now - timedelta(hours=48)
-    recent_orders = orders_df[orders_df['受注日時'] >= threshold_time]
     
-    if not recent_orders.empty:
+    with st.spinner("バズ検知アラートデータを集計中..."):
+        # 1. 実際の注文データを取得
+        try:
+            raw_orders_df = get_recent_orders()
+            if not raw_orders_df.empty:
+                raw_orders_df = raw_orders_df.drop_duplicates(subset=["受信日時", "SKU"], keep='first')
+                raw_orders_df['受注日時'] = pd.to_datetime(raw_orders_df['受信日時'], format='%Y/%m/%d %H:%M', errors='coerce')
+                
+                # SKUからISBNをマッピング
+                sku_to_isbn = {}
+                json_path = os.path.join(os.path.dirname(__file__), "sku_to_isbn.json")
+                if os.path.exists(json_path):
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        sku_to_isbn = json.load(f)
+                
+                raw_orders_df['ISBN'] = raw_orders_df['SKU'].map(sku_to_isbn).fillna('')
+                # 48時間以内かつISBNが存在するものに絞る
+                recent_orders = raw_orders_df[(raw_orders_df['受注日時'] >= threshold_time) & (raw_orders_df['ISBN'] != '')]
+            else:
+                recent_orders = pd.DataFrame()
+        except Exception as e:
+            recent_orders = pd.DataFrame()
+            st.warning("注文データの取得に失敗しました。")
+
+        # 2. 最新の八木書店在庫データを取得
+        yagi_df = pd.DataFrame()
+        try:
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            # Yagiスクレイピング結果の json を探す
+            json_files = glob.glob(os.path.join(parent_dir, "books_upload_*.json"))
+            if json_files:
+                latest_json = max(json_files, key=os.path.getctime)
+                with open(latest_json, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if "items" in data:
+                        yagi_df = pd.DataFrame(data["items"])
+                        if 'isbn' in yagi_df.columns:
+                            yagi_df.rename(columns={'isbn': 'ISBN'}, inplace=True)
+                        if 'stock' in yagi_df.columns:
+                            yagi_df.rename(columns={'stock': '在庫数'}, inplace=True)
+                            yagi_df['在庫数'] = pd.to_numeric(yagi_df['在庫数'], errors='coerce').fillna(0)
+                        if 'ISBN' in yagi_df.columns:
+                            # 共通の発注URLフォーマット
+                            yagi_df['発注URL'] = yagi_df['ISBN'].apply(lambda x: f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:keyword_search/keyword:{x}/optionselect:3")
+        except Exception as e:
+            pass
+
+    # --- アラート判定ロジック ---
+    alert_targets = pd.DataFrame()
+    if not recent_orders.empty and not yagi_df.empty and 'ISBN' in recent_orders.columns and 'ISBN' in yagi_df.columns:
         order_counts = recent_orders.groupby('ISBN').size().reset_index(name='受注件数')
         buzz_isbns = order_counts[order_counts['受注件数'] >= 2]
         
-        # yagi_df とマージして在庫数を取得
-        alert_targets = pd.merge(buzz_isbns, yagi_df, on='ISBN')
-        
-        # 在庫数が 1以上、かつ20以下
-        alert_targets = alert_targets[(alert_targets['在庫数'] >= 1) & (alert_targets['在庫数'] <= 20)]
-    else:
-        alert_targets = pd.DataFrame()
+        if not buzz_isbns.empty:
+            alert_targets = pd.merge(buzz_isbns, yagi_df, on='ISBN')
+            if not alert_targets.empty and '在庫数' in alert_targets.columns:
+                # 在庫数が 1以上、かつ20以下
+                alert_targets = alert_targets[(alert_targets['在庫数'] >= 1) & (alert_targets['在庫数'] <= 20)]
 
     # --- UI表示 ---
     if alert_targets.empty:
@@ -496,7 +531,7 @@ if page == "🎰 司令室 (メイン)":
             isbn = row['ISBN']
             product_name = recent_orders[recent_orders['ISBN'] == isbn].iloc[0]['商品名']
             count = row['受注件数']
-            stock = row['在庫数']
+            stock = int(row['在庫数'])
             url = row['発注URL']
             
             with st.container():
