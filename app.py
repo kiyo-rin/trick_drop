@@ -504,15 +504,12 @@ if page == "🎰 司令室 (メイン)":
 
         # 2. 最新の八木書店在庫データを取得
         yagi_df = pd.DataFrame()
+        base_dir = os.path.dirname(os.path.abspath(__file__))
         try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            parent_dir = os.path.dirname(current_dir)
-            
             # Yagiスクレイピング結果の json を探す
-            # Streamlit Cloud上（リポジトリのルート）とローカル環境（親ディレクトリ）の両方を探索する
-            json_files = glob.glob(os.path.join(current_dir, "books_upload_*.json"))
+            json_files = glob.glob(os.path.join(base_dir, "books_upload_*.json"))
             if not json_files:
-                json_files = glob.glob(os.path.join(parent_dir, "books_upload_*.json"))
+                st.error(f"ファイルが見つかりません。探索先: {base_dir}")
                 
             if json_files:
                 latest_json = max(json_files, key=os.path.getctime)
@@ -529,6 +526,7 @@ if page == "🎰 司令室 (メイン)":
                             # 共通の発注URLフォーマット
                             yagi_df['発注URL'] = yagi_df['ISBN'].apply(lambda x: f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:keyword_search/keyword:{x}/optionselect:3")
         except Exception as e:
+            st.error(f"ファイル読み込みエラー: {str(e)}")
             pass
 
     def get_latest_product_names(orders_df):
@@ -641,6 +639,7 @@ if page == "🎰 司令室 (メイン)":
         st.write(f"orders_df['受注日時'].min() ：{raw_orders_df['受注日時'].min()}")
         st.write(f"len(yagi_df) ：{len(yagi_df)}")
         st.write(f"orders_df と yagi_df を ISBN でマージした直後のDataFrameの件数 ：{len(pd.merge(raw_orders_df, yagi_df, on='ISBN', how='inner'))}")
+        st.write("ディレクトリ内のファイル一覧:", os.listdir(base_dir))
     except Exception as e:
         pass
 
