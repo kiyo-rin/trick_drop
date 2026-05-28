@@ -577,7 +577,13 @@ if page == "🎰 司令室 (メイン)":
                 - **過去48時間の受注件数**: {count}件
                 - **現在の八木書店在庫数**: 残り **{stock}** 冊
                 """)
-                st.markdown(f'<a href="{url}" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; margin-bottom: 20px;">➔ 八木書店で買い占める</a>', unsafe_allow_html=True)
+                amazon_url = f"https://www.amazon.co.jp/s?k={isbn}"
+                st.markdown(f'''
+<div style="display: flex; gap: 10px; margin-bottom: 20px;">
+    <a href="{url}" target="_blank" style="padding: 8px 16px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">➔ 八木書店で買い占める</a>
+    <a href="{amazon_url}" target="_blank" style="padding: 8px 16px; background-color: #f3a847; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">➔ Amazonで確認</a>
+</div>
+''', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -595,9 +601,10 @@ if page == "🎰 司令室 (メイン)":
                 if not df_predictive.empty:
                     product_names = get_latest_product_names(orders_30d)
                     df_predictive = pd.merge(df_predictive, product_names, on='ISBN', how='left')
+                    df_predictive['Amazonで確認'] = df_predictive['ISBN'].apply(lambda x: f"https://www.amazon.co.jp/s?k={x}")
                     df_predictive.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
                     df_predictive = df_predictive.sort_values(by='過去30日の販売数', ascending=False)
-                    df_predictive = df_predictive[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL']]
+                    df_predictive = df_predictive[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL', 'Amazonで確認']]
 
     if df_predictive.empty:
         st.write("現在、該当する商品はありません")
@@ -605,7 +612,8 @@ if page == "🎰 司令室 (メイン)":
         st.dataframe(
             df_predictive,
             column_config={
-                "発注URL": st.column_config.LinkColumn("発注リンク", display_text="発注画面へ")
+                "発注URL": st.column_config.LinkColumn("発注リンク", display_text="発注画面へ"),
+                "Amazonで確認": st.column_config.LinkColumn("Amazonで確認", display_text="Amazonへ")
             },
             hide_index=True,
             use_container_width=True
@@ -627,9 +635,10 @@ if page == "🎰 司令室 (メイン)":
                 if not df_restock.empty:
                     product_names = get_latest_product_names(orders_30d)
                     df_restock = pd.merge(df_restock, product_names, on='ISBN', how='left')
+                    df_restock['Amazonで確認'] = df_restock['ISBN'].apply(lambda x: f"https://www.amazon.co.jp/s?k={x}")
                     df_restock.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
                     df_restock = df_restock.sort_values(by='過去30日の販売数', ascending=False)
-                    df_restock = df_restock[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL']]
+                    df_restock = df_restock[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL', 'Amazonで確認']]
 
     if df_restock.empty:
         st.write("現在、該当する商品はありません")
@@ -637,7 +646,8 @@ if page == "🎰 司令室 (メイン)":
         st.dataframe(
             df_restock,
             column_config={
-                "発注URL": st.column_config.LinkColumn("発注リンク", display_text="発注画面へ")
+                "発注URL": st.column_config.LinkColumn("発注リンク", display_text="発注画面へ"),
+                "Amazonで確認": st.column_config.LinkColumn("Amazonで確認", display_text="Amazonへ")
             },
             hide_index=True,
             use_container_width=True
