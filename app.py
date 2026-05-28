@@ -562,18 +562,45 @@ if page == "🎰 司令室 (メイン)":
         # 同じISBNでも商品名がブレる場合があるため、最初の1件を採用する
         return orders_df.groupby('ISBN').first().reset_index()[['ISBN', '商品名']]
 
-    IGNORE_FILE = os.path.join(base_dir, "ignore_isbns.txt")
-    def get_ignore_isbns():
-        if os.path.exists(IGNORE_FILE):
-            with open(IGNORE_FILE, "r", encoding="utf-8") as f:
-                return set([line.strip() for line in f.readlines() if line.strip()])
+    SNOOZE_FILE = os.path.join(base_dir, "snooze_isbns.json")
+    def get_snoozed_isbns():
+        import json
+        import time
+        if os.path.exists(SNOOZE_FILE):
+            try:
+                with open(SNOOZE_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                current_time = time.time()
+                seven_days = 7 * 24 * 60 * 60
+                active = {}
+                ignored = set()
+                for isbn, ts in data.items():
+                    if current_time - float(ts) < seven_days:
+                        active[isbn] = ts
+                        ignored.add(isbn)
+                if len(active) != len(data):
+                    with open(SNOOZE_FILE, "w", encoding="utf-8") as f:
+                        json.dump(active, f)
+                return ignored
+            except Exception:
+                return set()
         return set()
 
-    def add_ignore_isbn(isbn):
-        with open(IGNORE_FILE, "a", encoding="utf-8") as f:
-            f.write(f"{isbn}\n")
+    def add_snooze_isbn(isbn):
+        import json
+        import time
+        data = {}
+        if os.path.exists(SNOOZE_FILE):
+            try:
+                with open(SNOOZE_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                pass
+        data[isbn] = time.time()
+        with open(SNOOZE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
 
-    ignored_isbns = get_ignore_isbns()
+    ignored_isbns = get_snoozed_isbns()
 
     # --- アラート1: バズ検知判定ロジック ---
     alert_targets = pd.DataFrame()
@@ -618,8 +645,8 @@ if page == "🎰 司令室 (メイン)":
     <a href="{amazon_url}" target="_blank" style="padding: 8px 16px; background-color: #f3a847; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">➔ Amazonで確認</a>
 </div>
 ''', unsafe_allow_html=True)
-                if st.button("🚫 見送り（非表示）", key=f"ignore_alert1_{isbn}"):
-                    add_ignore_isbn(isbn)
+                if st.button("⏳ 7日間見送り", key=f"snooze_alert1_{isbn}"):
+                    add_snooze_isbn(isbn)
                     st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -665,8 +692,8 @@ if page == "🎰 司令室 (メイン)":
             cols[1].write(str(row['過去30日の販売数']))
             cols[2].write(str(row['現在の八木在庫数']))
             cols[3].markdown(f'<a href="{row["発注URL"]}" target="_blank">発注</a> / <a href="{row["Amazonで確認"]}" target="_blank">Amazon</a>', unsafe_allow_html=True)
-            if cols[4].button("🚫 見送り", key=f"ign_pred_{row['ISBN']}"):
-                add_ignore_isbn(row['ISBN'])
+            if cols[4].button("⏳ 7日間見送り", key=f"snooze_pred_{row['ISBN']}"):
+                add_snooze_isbn(row['ISBN'])
                 st.rerun()
             st.markdown("---")
 
