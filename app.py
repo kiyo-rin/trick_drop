@@ -482,6 +482,9 @@ if page == "🎰 司令室 (メイン)":
                         sku_to_isbn = json.load(f)
                 
                 raw_orders_df['ISBN'] = raw_orders_df['SKU'].map(sku_to_isbn).fillna('')
+                # 数量から数値のみを抽出（「🚨 2冊」などへの対応）、抽出できない場合は1とする
+                raw_orders_df['販売数'] = raw_orders_df['数量'].astype(str).str.extract(r'(\d+)').astype(float).fillna(1).astype(int)
+                
                 # ISBNが存在するものに絞る
                 valid_orders = raw_orders_df[raw_orders_df['ISBN'] != '']
                 recent_orders = valid_orders[valid_orders['受注日時'] >= threshold_time]
@@ -530,7 +533,7 @@ if page == "🎰 司令室 (メイン)":
     # --- アラート1: バズ検知判定ロジック ---
     alert_targets = pd.DataFrame()
     if not recent_orders.empty and not yagi_df.empty and 'ISBN' in recent_orders.columns and 'ISBN' in yagi_df.columns:
-        order_counts = recent_orders.groupby('ISBN').size().reset_index(name='受注件数')
+        order_counts = recent_orders.groupby('ISBN')['販売数'].sum().reset_index(name='受注件数')
         buzz_isbns = order_counts[order_counts['受注件数'] >= 2]
         
         if not buzz_isbns.empty:
@@ -566,7 +569,7 @@ if page == "🎰 司令室 (メイン)":
     st.markdown("### 🦅 予測型ハイジャック推奨（枯渇間近の刈り取り）")
     df_predictive = pd.DataFrame()
     if not orders_30d.empty and not yagi_df.empty:
-        counts_30d_pred = orders_30d.groupby('ISBN').size().reset_index(name='過去30日の販売数')
+        counts_30d_pred = orders_30d.groupby('ISBN')['販売数'].sum().reset_index(name='過去30日の販売数')
         counts_30d_pred = counts_30d_pred[counts_30d_pred['過去30日の販売数'] >= 2]
         
         if not counts_30d_pred.empty:
@@ -598,7 +601,7 @@ if page == "🎰 司令室 (メイン)":
     st.markdown("### 🛒 送料無料ライン突破・買い足し推奨（安全圏）")
     df_restock = pd.DataFrame()
     if not orders_30d.empty and not yagi_df.empty:
-        counts_30d = orders_30d.groupby('ISBN').size().reset_index(name='過去30日の販売数')
+        counts_30d = orders_30d.groupby('ISBN')['販売数'].sum().reset_index(name='過去30日の販売数')
         counts_30d = counts_30d[counts_30d['過去30日の販売数'] >= 3]
         
         if not counts_30d.empty:
