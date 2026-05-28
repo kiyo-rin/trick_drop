@@ -456,6 +456,60 @@ if page == "🎰 司令室 (メイン)":
     st.markdown('<div class="main-header">🎰 司令室 (Command Center)</div>', unsafe_allow_html=True)
     st.markdown('<div class="slogan">TRICK DROP — 「ありえない成功を生み出す、仕掛けられた自販機」 ⚡️🎰</div>', unsafe_allow_html=True)
     
+    # === バズ検知アラート機能 ===
+    import pandas as pd
+    from datetime import datetime, timedelta
+
+    # (モックデータ生成: 実運用時は実際のDBやAPIから取得する想定)
+    now = datetime.now()
+    orders_df = pd.DataFrame([
+        {'受注日時': now - timedelta(hours=2), 'ISBN': '9784001111111', '商品名': 'バズり本A'},
+        {'受注日時': now - timedelta(hours=10), 'ISBN': '9784001111111', '商品名': 'バズり本A'},
+        {'受注日時': now - timedelta(hours=5), 'ISBN': '9784112222222', '商品名': '普通の売れ筋B'},
+    ])
+    yagi_df = pd.DataFrame([
+        {'ISBN': '9784001111111', '在庫数': 5, '発注URL': 'https://www.kosho.or.jp/products/list.php?mode=search&name=9784001111111'},
+        {'ISBN': '9784112222222', '在庫数': 100, '発注URL': 'https://www.kosho.or.jp/products/list.php?mode=search&name=9784112222222'},
+    ])
+    
+    # --- アラート判定ロジック ---
+    threshold_time = now - timedelta(hours=48)
+    recent_orders = orders_df[orders_df['受注日時'] >= threshold_time]
+    
+    if not recent_orders.empty:
+        order_counts = recent_orders.groupby('ISBN').size().reset_index(name='受注件数')
+        buzz_isbns = order_counts[order_counts['受注件数'] >= 2]
+        
+        # yagi_df とマージして在庫数を取得
+        alert_targets = pd.merge(buzz_isbns, yagi_df, on='ISBN')
+        
+        # 在庫数が 1以上、かつ20以下
+        alert_targets = alert_targets[(alert_targets['在庫数'] >= 1) & (alert_targets['在庫数'] <= 20)]
+    else:
+        alert_targets = pd.DataFrame()
+
+    # --- UI表示 ---
+    if alert_targets.empty:
+        st.info("🚨 現在、緊急ハイジャック推奨のバズ商品はありません")
+    else:
+        for idx, row in alert_targets.iterrows():
+            isbn = row['ISBN']
+            product_name = recent_orders[recent_orders['ISBN'] == isbn].iloc[0]['商品名']
+            count = row['受注件数']
+            stock = row['在庫数']
+            url = row['発注URL']
+            
+            with st.container():
+                st.error("🚨 **緊急バズ検知！全量買い占め推奨** 🚨")
+                st.markdown(f"""
+                - **商品名**: {product_name} (ISBN: {isbn})
+                - **過去48時間の受注件数**: {count}件
+                - **現在の八木書店在庫数**: 残り **{stock}** 冊
+                """)
+                st.markdown(f'<a href="{url}" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold; margin-bottom: 20px;">➔ 八木書店で買い占める</a>', unsafe_allow_html=True)
+                
+    st.markdown("---")
+
     # --- 1. 横断検索ツール ---
     st.markdown("### 🔍 最速！一括横断検索")
     search_query = st.text_input("本・商品のタイトルやISBNを入力", placeholder="例: 9784001111111 (Enterキーを押すと各検索ボタンが出現します)")
