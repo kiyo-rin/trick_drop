@@ -562,11 +562,28 @@ if page == "🎰 司令室 (メイン)":
         # 同じISBNでも商品名がブレる場合があるため、最初の1件を採用する
         return orders_df.groupby('ISBN').first().reset_index()[['ISBN', '商品名']]
 
+    IGNORE_FILE = os.path.join(base_dir, "ignore_isbns.txt")
+    def get_ignore_isbns():
+        if os.path.exists(IGNORE_FILE):
+            with open(IGNORE_FILE, "r", encoding="utf-8") as f:
+                return set([line.strip() for line in f.readlines() if line.strip()])
+        return set()
+
+    def add_ignore_isbn(isbn):
+        with open(IGNORE_FILE, "a", encoding="utf-8") as f:
+            f.write(f"{isbn}\n")
+
+    ignored_isbns = get_ignore_isbns()
+
     # --- アラート1: バズ検知判定ロジック ---
     alert_targets = pd.DataFrame()
     if not recent_orders.empty and not yagi_df.empty and 'ISBN' in recent_orders.columns and 'ISBN' in yagi_df.columns:
         order_counts = recent_orders.groupby('ISBN')['販売数'].sum().reset_index(name='受注件数')
         buzz_isbns = order_counts[order_counts['受注件数'] >= 2]
+        
+        # 見送りリストの除外
+        if not buzz_isbns.empty:
+            buzz_isbns = buzz_isbns[~buzz_isbns['ISBN'].isin(ignored_isbns)]
         
         if not buzz_isbns.empty:
             alert_targets = pd.merge(buzz_isbns, yagi_df, on='ISBN')
@@ -601,6 +618,9 @@ if page == "🎰 司令室 (メイン)":
     <a href="{amazon_url}" target="_blank" style="padding: 8px 16px; background-color: #f3a847; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">➔ Amazonで確認</a>
 </div>
 ''', unsafe_allow_html=True)
+                if st.button("🚫 見送り（非表示）", key=f"ignore_alert1_{isbn}"):
+                    add_ignore_isbn(isbn)
+                    st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -611,6 +631,10 @@ if page == "🎰 司令室 (メイン)":
         counts_30d_pred = orders_30d.groupby('ISBN')['販売数'].sum().reset_index(name='過去30日の販売数')
         counts_30d_pred = counts_30d_pred[counts_30d_pred['過去30日の販売数'] >= 2]
         
+        # 見送りリストの除外
+        if not counts_30d_pred.empty:
+            counts_30d_pred = counts_30d_pred[~counts_30d_pred['ISBN'].isin(ignored_isbns)]
+            
         if not counts_30d_pred.empty:
             df_predictive = pd.merge(counts_30d_pred, yagi_df, on='ISBN')
             if not df_predictive.empty:
@@ -621,20 +645,30 @@ if page == "🎰 司令室 (メイン)":
                     df_predictive['Amazonで確認'] = df_predictive['ISBN'].apply(lambda x: f"https://www.amazon.co.jp/dp/{isbn13_to_10(x)}")
                     df_predictive.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
                     df_predictive = df_predictive.sort_values(by='過去30日の販売数', ascending=False)
-                    df_predictive = df_predictive[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL', 'Amazonで確認']]
+                    df_predictive = df_predictive[['ISBN', '商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL', 'Amazonで確認']]
 
     if df_predictive.empty:
         st.write("現在、該当する商品はありません")
     else:
-        st.dataframe(
-            df_predictive,
-            column_config={
-                "発注URL": st.column_config.LinkColumn("発注リンク", display_text="発注画面へ"),
-                "Amazonで確認": st.column_config.LinkColumn("Amazonで確認", display_text="Amazonへ")
-            },
-            hide_index=True,
-            use_container_width=True
-        )
+        # dataframeの代わりに各行にボタンを配置するためにst.columnsを使用
+        header = st.columns([4, 2, 2, 2, 2])
+        header[0].markdown("**商品名**")
+        header[1].markdown("**過去30日の販売数**")
+        header[2].markdown("**現在の八木在庫数**")
+        header[3].markdown("**発注 / 確認**")
+        header[4].markdown("**アクション**")
+        st.markdown("---")
+        
+        for idx, row in df_predictive.iterrows():
+            cols = st.columns([4, 2, 2, 2, 2])
+            cols[0].write(row['商品名'])
+            cols[1].write(str(row['過去30日の販売数']))
+            cols[2].write(str(row['現在の八木在庫数']))
+            cols[3].markdown(f'<a href="{row["発注URL"]}" target="_blank">発注</a> / <a href="{row["Amazonで確認"]}" target="_blank">Amazon</a>', unsafe_allow_html=True)
+            if cols[4].button("🚫 見送り", key=f"ign_pred_{row['ISBN']}"):
+                add_ignore_isbn(row['ISBN'])
+                st.rerun()
+            st.markdown("---")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
