@@ -564,20 +564,20 @@ if page == "🎰 司令室 (メイン)":
     # --- アラート2: 予測型ハイジャック推奨（枯渇間近の刈り取り） ---
     st.markdown("### 🦅 予測型ハイジャック推奨（枯渇間近の刈り取り）")
     df_predictive = pd.DataFrame()
-    if not orders_60d.empty and not yagi_df.empty:
-        counts_60d = orders_60d.groupby('ISBN').size().reset_index(name='過去60日の販売数')
-        counts_60d = counts_60d[counts_60d['過去60日の販売数'] >= 5]
+    if not orders_30d.empty and not yagi_df.empty:
+        counts_30d_pred = orders_30d.groupby('ISBN').size().reset_index(name='過去30日の販売数')
+        counts_30d_pred = counts_30d_pred[counts_30d_pred['過去30日の販売数'] >= 2]
         
-        if not counts_60d.empty:
-            df_predictive = pd.merge(counts_60d, yagi_df, on='ISBN')
+        if not counts_30d_pred.empty:
+            df_predictive = pd.merge(counts_30d_pred, yagi_df, on='ISBN')
             if not df_predictive.empty:
                 df_predictive = df_predictive[(df_predictive['在庫数'] >= 1) & (df_predictive['在庫数'] <= 11)]
                 if not df_predictive.empty:
-                    product_names = get_latest_product_names(orders_60d)
+                    product_names = get_latest_product_names(orders_30d)
                     df_predictive = pd.merge(df_predictive, product_names, on='ISBN', how='left')
                     df_predictive.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
-                    df_predictive = df_predictive.sort_values(by='過去60日の販売数', ascending=False)
-                    df_predictive = df_predictive[['商品名', '過去60日の販売数', '現在の八木在庫数', '発注URL']]
+                    df_predictive = df_predictive.sort_values(by='過去30日の販売数', ascending=False)
+                    df_predictive = df_predictive[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL']]
 
     if df_predictive.empty:
         st.write("現在、該当する商品はありません")
