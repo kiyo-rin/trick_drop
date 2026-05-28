@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
+<head>
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="ROBOTS" content="noindex, nofollow" />
+<title>ログイン</title>
+
+<link rel="stylesheet" type="text/css" href="/bb/css/common.css" /><script type="text/javascript" src="/bb/js/common.js"></script>
+<!-- GA Tracking Code-->
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38942937-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+<!-- /GA Tracking Code-->
+</head>
+
+<body id="LG001" class="oneCol plain login">
+<div id="container">
+
+<!-- Header Area ================================================================================-->
+<div id="header">
+<h1 id="sitelogo"><a href=""><img src="/img/site_logo.png" alt="八木書店バーゲンブックストア" /></a></h1>
+<!-- /header--></div>
+<!-- /Header Area ================================================================================-->
+
+<!-- + Wrapper + ================================================================================-->
+<div id="wrapper">
+<div id="main">
+
+
+<!-- /+ Contents + ============================================================-->
+<div id="contents" class="?????">
+
+<!-- Login Section ========================================-->
+<div id="loginSection">
+<h2>ログイン</h2>
+<form action="/bb/" id="TopLoginForm" method="post" accept-charset="utf-8"><div style="display:none;"><input type="hidden" name="_method" value="POST" /></div><div class="sectionbox">
+<p class="message">
+いらっしゃいませ。<br>
+弊社より送付済みの契約情報に記載の「ログインID」でログインしてください。
+</p>
+<div class="formgroup">
+	<p><label for="loginID">ログインID：</label><input name="data[ClientMst][client_code]" type="text" id="loginID" onblur="document.getElementById(&quot;loginPW&quot;).focus()" onkeydown="go();" maxlength="8" /></p>
+	<p><label for="loginPW">パスワード：</label><input type="password" name="data[ClientMst][password]" id="loginPW" onblur="document.querySelector(&quot;#TopLoginForm &gt; div.sectionbox &gt; div &gt; div &gt; div &gt; a&quot;).focus()" onkeydown="go();" /></p>
+	<div class="submit">
+		<div class="submitbutton">
+			<a href="javascript:void(0);" onClick="deleteCookieLogin('TopLoginForm'); return false;" class="next"><span>ログイン</span><span class="bg_right">〓</span></a>
+		</div>
+	</div>
+</div>
+<p class="center"><a href="/bb/renews/input">パスワードをお忘れ、または新規作成の場合</a></p>
+</div>
+</form>
+<!-- /loginSection--></div>
+<!-- /Login Section ========================================-->
+
+<!-- /contents--></div>
+<!-- /+ Contents + ============================================================-->
+
+<!-- /main--></div>
+<!-- /wrapper--></div>
+<!-- /+ Wrapper + ================================================================================-->
+
+<!-- + page-top 20170807 add teramoto + -->
+<p id="page-top"><a href="#wrap">トップへ戻る</a></p>
+<!-- + Footer + ================================================================================-->
+<div id="footer">
+    <div id="footnav">
+        <ul>
+            <li><a href="http://www.books-yagi.co.jp">八木書店トップ</a></li>
+            <li><a href="/bb/books/book_top">バーゲンブックストアトップ</a></li>
+            <li><a href="/bb/guides/privacy_policy">プライバシーポリシー</a></li>
+            <li><a href="/bb/guides/user_guide">ご利用ガイド</a></li>
+            <li><a href="/bb/guides/sales_guide">販売の手引</a></li>
+        </ul>
+    </div>
+    <div id="copyright">&copy; YAGI SHOTEN Co.,Ltd. All rights reserved.</div>
+</div>
+<!-- /+ Footer + ================================================================================-->
+
+<!-- /container--></div>
+</body>
+</html>
