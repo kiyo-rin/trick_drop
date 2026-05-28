@@ -541,6 +541,22 @@ if page == "🎰 司令室 (メイン)":
             st.error(f"ファイル読み込みエラー: {str(e)}")
             pass
 
+    def isbn13_to_10(isbn13: str) -> str:
+        """ISBN-13文字列をISBN-10(ASIN)に変換する。変換できない場合はそのまま返す"""
+        isbn = str(isbn13).replace("-", "").strip()
+        if len(isbn) != 13 or not isbn.startswith("978"):
+            return isbn
+        nine_digits = isbn[3:12]
+        chk_sum = sum((10 - i) * int(nine_digits[i]) for i in range(9))
+        chk_digit = 11 - (chk_sum % 11)
+        if chk_digit == 10:
+            chk_str = "X"
+        elif chk_digit == 11:
+            chk_str = "0"
+        else:
+            chk_str = str(chk_digit)
+        return nine_digits + chk_str
+
     def get_latest_product_names(orders_df):
         # ISBNごとに最新の商品名を取得する
         # 同じISBNでも商品名がブレる場合があるため、最初の1件を採用する
@@ -577,7 +593,8 @@ if page == "🎰 司令室 (メイン)":
                 - **過去48時間の受注件数**: {count}件
                 - **現在の八木書店在庫数**: 残り **{stock}** 冊
                 """)
-                amazon_url = f"https://www.amazon.co.jp/s?k={isbn}"
+                asin = isbn13_to_10(isbn)
+                amazon_url = f"https://www.amazon.co.jp/dp/{asin}"
                 st.markdown(f'''
 <div style="display: flex; gap: 10px; margin-bottom: 20px;">
     <a href="{url}" target="_blank" style="padding: 8px 16px; background-color: #ff4b4b; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">➔ 八木書店で買い占める</a>
@@ -601,7 +618,7 @@ if page == "🎰 司令室 (メイン)":
                 if not df_predictive.empty:
                     product_names = get_latest_product_names(orders_30d)
                     df_predictive = pd.merge(df_predictive, product_names, on='ISBN', how='left')
-                    df_predictive['Amazonで確認'] = df_predictive['ISBN'].apply(lambda x: f"https://www.amazon.co.jp/s?k={x}")
+                    df_predictive['Amazonで確認'] = df_predictive['ISBN'].apply(lambda x: f"https://www.amazon.co.jp/dp/{isbn13_to_10(x)}")
                     df_predictive.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
                     df_predictive = df_predictive.sort_values(by='過去30日の販売数', ascending=False)
                     df_predictive = df_predictive[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL', 'Amazonで確認']]
@@ -635,7 +652,7 @@ if page == "🎰 司令室 (メイン)":
                 if not df_restock.empty:
                     product_names = get_latest_product_names(orders_30d)
                     df_restock = pd.merge(df_restock, product_names, on='ISBN', how='left')
-                    df_restock['Amazonで確認'] = df_restock['ISBN'].apply(lambda x: f"https://www.amazon.co.jp/s?k={x}")
+                    df_restock['Amazonで確認'] = df_restock['ISBN'].apply(lambda x: f"https://www.amazon.co.jp/dp/{isbn13_to_10(x)}")
                     df_restock.rename(columns={'在庫数': '現在の八木在庫数'}, inplace=True)
                     df_restock = df_restock.sort_values(by='過去30日の販売数', ascending=False)
                     df_restock = df_restock[['商品名', '過去30日の販売数', '現在の八木在庫数', '発注URL', 'Amazonで確認']]
