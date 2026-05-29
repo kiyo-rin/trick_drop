@@ -1,4 +1,5 @@
 streamlit
 pandas
 plotly
-numpypython-amazon-sp-api
+numpy
+python-amazon-sp-api
