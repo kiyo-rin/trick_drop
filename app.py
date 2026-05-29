@@ -153,6 +153,7 @@ pages = [
     "📚 YGシステム (自動受注リスト)",
     "📦 未発送の注文 (Amazon)",
     "🎯 TRICK SHOOTER (出品ツール)",
+    "⚡ TRICK RADAR",
 ]
 
 # URLパラメータから現在のページを取得してデフォルト選択にする
@@ -170,7 +171,6 @@ st.query_params["page"] = page
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔗 クイックアクセス**")
-st.sidebar.markdown("- [⚡ TRICK RADAR](https://metal-months-film.loca.lt)")
 st.sidebar.markdown("- [📦 Amazon Seller Central](https://sellercentral.amazon.co.jp/)")
 st.sidebar.markdown("- [🛍️ メルカリShops](https://mercari-shops.com/seller/shops)")
 st.sidebar.markdown("- [🛒 Qoo10（QSM）](https://qsm.qoo10.jp/gmkt.inc.gsm.web/default.aspx)")
@@ -977,4 +977,12 @@ elif page == "🎯 TRICK SHOOTER (出品ツール)":
     稼働できるようになるまでこのメニューからはアクセスを制限していますが、ローカルでの画面確認用として下のボタンから別ページで開くことができます。
     """)
     st.page_link("pages/trick_shooter.py", label="開発中のTRICK SHOOTER画面を見る", icon="🎯")
+
+elif page == "⚡ TRICK RADAR":
+    st.markdown('<div class="main-header">⚡ TRICK RADAR</div>', unsafe_allow_html=True)
+    st.markdown("ローカルで稼働しているTRICK RADAR（リサーチ連携）にアクセスします。")
+    st.link_button("外部ウィンドウでTRICK RADARを開く", "https://metal-months-film.loca.lt", use_container_width=True)
+    
+    # iframe内に埋め込み表示
+    st.components.v1.iframe("https://metal-months-film.loca.lt", height=800, scrolling=True)
 
