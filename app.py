@@ -816,7 +816,24 @@ elif page == "📚 YGシステム (自動受注リスト)":
             q = urllib.parse.quote(title.strip())
             return f"https://www.books-yagi.co.jp/bb/books/search/search_criteria:keyword_search/page:1/keyword:{q}"
             
+        def make_amazon_link(row):
+            sku = row.get("SKU", "")
+            isbn = sku_to_isbn.get(sku)
+            if isbn:
+                try:
+                    asin = isbn13_to_10(isbn)
+                    return f"https://www.amazon.co.jp/dp/{asin}"
+                except:
+                    return f"https://www.amazon.co.jp/s?k={isbn}"
+            
+            title = row.get("商品名", "")
+            if not title:
+                return ""
+            q = urllib.parse.quote(title.strip())
+            return f"https://www.amazon.co.jp/s?k={q}"
+            
         orders_df["🔗 八木リンク"] = orders_df.apply(make_yagi_link, axis=1)
+        orders_df["🔗 Amazonリンク"] = orders_df.apply(make_amazon_link, axis=1)
         
         # --- 期間で絞り込み (八木発注の締め切り: 月曜8:30 / 木曜8:30) ---
         from datetime import datetime, timedelta, timezone
@@ -863,7 +880,7 @@ elif page == "📚 YGシステム (自動受注リスト)":
         st.info(f"📅 現在の表示期間: **{period_str}**")
 
         # 画面表示用に並び替え (SKUをプラットフォームと商品名の間に追加、リンクも追加)
-        view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "🔗 八木リンク", "SKU", "数量", "商品名"]
+        view_cols = ["✅ 発注済", "受信日時", "プラットフォーム", "🔗 八木リンク", "🔗 Amazonリンク", "SKU", "数量", "商品名"]
         
         # 受信日時の新しい順に降順ソート
         filtered_df = filtered_df.sort_values(by="dt", ascending=False)
@@ -905,6 +922,7 @@ elif page == "📚 YGシステム (自動受注リスト)":
                     "受信日時": st.column_config.TextColumn("受信日時", disabled=True),
                     "プラットフォーム": st.column_config.TextColumn("プラットフォーム", disabled=True),
                     "🔗 八木リンク": st.column_config.LinkColumn("🔗 八木リンク", help="八木書店のページを開く", display_text="発注ページへ", disabled=True),
+                    "🔗 Amazonリンク": st.column_config.LinkColumn("🔗 Amazonリンク", help="Amazonの検索/商品ページを開く", display_text="Amazonで確認", disabled=True),
                     "SKU": st.column_config.TextColumn("SKU", disabled=True),
                     "数量": st.column_config.TextColumn("数量", disabled=True),
                     "商品名": st.column_config.TextColumn("商品名", disabled=True),
