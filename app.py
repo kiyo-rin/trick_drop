@@ -167,10 +167,11 @@ page = st.sidebar.radio("", pages, index=default_index)
 # 選択されたページをURLパラメータに保存（リロード対策）
 st.query_params["page"] = page
 
+st.sidebar.markdown("🎯 [TRICK SHOOTER](http://localhost:8501/trick_shooter)")
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔗 クイックアクセス**")
 st.sidebar.markdown("- [⚡ TRICK RADAR](https://metal-months-film.loca.lt)")
-st.sidebar.markdown("- [🎯 TRICK SHOOTER](http://localhost:8501/trick_shooter)")
 st.sidebar.markdown("- [📦 Amazon Seller Central](https://sellercentral.amazon.co.jp/)")
 st.sidebar.markdown("- [🛍️ メルカリShops](https://mercari-shops.com/seller/shops)")
 st.sidebar.markdown("- [🛒 Qoo10（QSM）](https://qsm.qoo10.jp/gmkt.inc.gsm.web/default.aspx)")
