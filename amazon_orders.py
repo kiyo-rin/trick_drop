@@ -8,7 +8,19 @@ import os
 
 # To ensure the config is correctly imported
 sys.path.append(os.path.abspath('.'))
-from exports.amazon_sp_api_config import SP_API_CONFIG
+try:
+    from exports.amazon_sp_api_config import SP_API_CONFIG
+except ImportError:
+    # Streamlit Cloud (デプロイ環境) では st.secrets を使用する
+    SP_API_CONFIG = {
+        'refresh_token': st.secrets.get("SP_API_REFRESH_TOKEN", ""),
+        'lwa_app_id': st.secrets.get("SP_API_LWA_APP_ID", ""),
+        'lwa_client_secret': st.secrets.get("SP_API_LWA_CLIENT_SECRET", ""),
+        'aws_access_key': st.secrets.get("SP_API_AWS_ACCESS_KEY", ""),
+        'aws_secret_key': st.secrets.get("SP_API_AWS_SECRET_KEY", ""),
+        'role_arn': st.secrets.get("SP_API_ROLE_ARN", ""), 
+        'seller_id': st.secrets.get("SP_API_SELLER_ID", "")
+    }
 
 @st.cache_data(ttl=300)
 def fetch_unshipped_orders():
