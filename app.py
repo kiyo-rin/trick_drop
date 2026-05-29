@@ -10,7 +10,7 @@ import re
 import datetime
 from email.utils import parsedate_to_datetime
 
-# from amazon_orders import render_amazon_orders_page
+from amazon_orders import render_amazon_orders_page
 
 # ページ設定
 st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
@@ -150,8 +150,8 @@ st.sidebar.markdown("**NAVIGATION**")
 
 pages = [
     "🎰 司令室 (メイン)", 
-    "📚 YGシステム (自動受注リスト)"
-    # "未発送の注文 (Amazon)",
+    "📚 YGシステム (自動受注リスト)",
+    "📦 未発送の注文 (Amazon)",
 ]
 
 # URLパラメータから現在のページを取得してデフォルト選択にする
@@ -966,6 +966,6 @@ elif page == "📚 YGシステム (自動受注リスト)":
     else:
         st.info("直近100件のメールに新しい注文は見つかりませんでした。")
 
-# elif page == " 未発送の注文 (Amazon)":
-#     render_amazon_orders_page()
+elif page == "📦 未発送の注文 (Amazon)":
+    render_amazon_orders_page()
 
