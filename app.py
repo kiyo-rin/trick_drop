@@ -152,6 +152,7 @@ pages = [
     "🎰 司令室 (メイン)", 
     "📚 YGシステム (自動受注リスト)",
     "📦 未発送の注文 (Amazon)",
+    "🎯 TRICK SHOOTER (出品ツール)",
 ]
 
 # URLパラメータから現在のページを取得してデフォルト選択にする
@@ -166,8 +167,6 @@ page = st.sidebar.radio("", pages, index=default_index)
 
 # 選択されたページをURLパラメータに保存（リロード対策）
 st.query_params["page"] = page
-
-st.sidebar.markdown("🎯 [TRICK SHOOTER](http://localhost:8501/trick_shooter)")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**🔗 クイックアクセス**")
@@ -968,4 +967,14 @@ elif page == "📚 YGシステム (自動受注リスト)":
 
 elif page == "📦 未発送の注文 (Amazon)":
     render_amazon_orders_page()
+
+elif page == "🎯 TRICK SHOOTER (出品ツール)":
+    st.markdown('<div class="main-header">🎯 TRICK SHOOTER (出品ツール)</div>', unsafe_allow_html=True)
+    
+    st.warning("🚨 **現在Amazonの審査待ちです** (SP-API: Direct-to-Consumer Shipping)")
+    st.markdown("""
+    現在、Amazonに出品ツール用の権限申請を行い、審査を待っている状態です。  
+    稼働できるようになるまでこのメニューからはアクセスを制限していますが、ローカルでの画面確認用として下のボタンから別ページで開くことができます。
+    """)
+    st.page_link("pages/trick_shooter.py", label="開発中のTRICK SHOOTER画面を見る", icon="🎯")
 
