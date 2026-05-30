@@ -66,7 +66,7 @@ def fetch_my_inventory_info(sku):
     try:
         # Listings_Items APIを使用して対象SKUの詳細を取得
         api = ListingsItems(credentials=SP_API_CONFIG, marketplace=Marketplaces.JP)
-        res = api.get_listings_item(SELLER_ID, sku, includedData=["summaries", "attributes", "offers"])
+        res = api.get_listings_item(SELLER_ID, sku, marketplaceIds=[Marketplaces.JP.marketplace_id], includedData=["summaries", "attributes", "offers"])
         payload = res.payload
         
         # 1. Summariesからの情報抽出 (ASIN, Quantity)
@@ -102,6 +102,13 @@ def fetch_my_inventory_info(sku):
             
         # 3. Attributesからの情報抽出
         attributes = payload.get("attributes", {})
+        
+        # 在庫数 (Quantity) は attributes.fulfillment_availability の中にある
+        if "fulfillment_availability" in attributes:
+            fa = attributes["fulfillment_availability"]
+            if isinstance(fa, list) and len(fa) > 0:
+                quantity = fa[0].get("quantity", 0)
+
         if "condition_note" in attributes:
             cn = attributes["condition_note"]
             if isinstance(cn, list) and len(cn) > 0:
@@ -123,8 +130,18 @@ def fetch_my_inventory_info(sku):
             "condition_note": condition_note
         }
     except Exception as e:
-        print(f"Listings API Error for {sku}: {e}")
-        return {"error": str(e)}
+        error_msg = str(e)
+        if hasattr(e, 'payload'):
+            error_msg = f"{e} - {e.payload}"
+        elif hasattr(e, 'message'):
+            error_msg = f"{e} - {e.message}"
+        
+        # もしエラー内容が空になってしまう場合への対策
+        if not error_msg or error_msg.strip() == "":
+            error_msg = repr(e)
+            
+        print(f"Listings API Error for {sku}: {error_msg}")
+        return {"error": error_msg}
 
 # 国会図書館APIによる書籍情報取得
 def fetch_book_info_ndl(isbn):
@@ -409,7 +426,7 @@ if True:
                             st.session_state["my_condition_note"] = my_info["condition_note"]
                             st.session_state["trigger_fetch"] = True
                             st.success(f"✅ SKU: {input_sku} の情報をSP-APIから完璧に抽出しました！")
-                    st.rerun()
+                            st.rerun()
             shelf_location = "既存"
             
     with col_sku2:
