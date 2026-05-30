@@ -21,12 +21,22 @@ except Exception as e:
     st.error(f"Supabase connection error: {e}")
 
 try:
-    from sp_api.api import Products
+    from sp_api.api import Products, ListingsItems, CatalogItems
     from sp_api.base import Marketplaces
-    from exports.amazon_sp_api_config import SP_API_CONFIG
     SP_API_AVAILABLE = True
+    SP_API_CONFIG = {
+        'refresh_token': st.secrets.get("SP_API_REFRESH_TOKEN", ""),
+        'lwa_app_id': st.secrets.get("SP_API_LWA_APP_ID", ""),
+        'lwa_client_secret': st.secrets.get("SP_API_LWA_CLIENT_SECRET", ""),
+        'aws_access_key': st.secrets.get("SP_API_AWS_ACCESS_KEY", ""),
+        'aws_secret_key': st.secrets.get("SP_API_AWS_SECRET_KEY", ""),
+        'role_arn': st.secrets.get("SP_API_ROLE_ARN", "")
+    }
+    SELLER_ID = st.secrets.get("SP_API_SELLER_ID", "")
 except ImportError:
     SP_API_AVAILABLE = False
+    SP_API_CONFIG = {}
+    SELLER_ID = ""
     
 st.set_page_config(page_title="TRICK SHOOTER", layout="wide")
 st.title("TRICK SHOOTER 🎯 - マルチ同時出品ツール")
@@ -48,20 +58,73 @@ def asin_to_isbn13(asin):
         return core + str(check)
     return asin
 
-# SKUからASINを逆引き (モック: 実装待ち)
-def get_asin_from_sku(sku):
-    import time
-    time.sleep(0.5) 
-    return "4865138005"  # 医者からもらった薬がわかる本 (テスト用)
-
-# 自社出品情報の取得 (モック: 実装待ち)
-def get_my_inventory_info(sku):
-    import time
-    time.sleep(0.5)
-    return {
-        "price": 2800,
-        "condition": "良い"
-    }
+# SKUを元にAmazon SP-APIから出品情報（ASIN, 価格, 状態, 数量, 特記事項など）を取得する
+def fetch_my_inventory_info(sku):
+    if not SP_API_AVAILABLE or not SELLER_ID:
+        return {"error": "SP-APIが設定されていません"}
+        
+    try:
+        # Listings_Items APIを使用して対象SKUの詳細を取得
+        api = ListingsItems(credentials=SP_API_CONFIG, marketplace=Marketplaces.JP)
+        res = api.get_listings_item(SELLER_ID, sku, includedData=["summaries", "attributes", "offers"])
+        payload = res.payload
+        
+        # 1. Summariesからの情報抽出 (ASIN, Quantity)
+        summaries = payload.get("summaries", [])
+        asin = ""
+        condition = "Unknown"
+        quantity = 0
+        if summaries:
+            s_dict = summaries[0]
+            asin = s_dict.get("asin", "")
+            quantity = s_dict.get("quantity", 0) # 現在の在庫数
+            # itemCondition: new_new, used_very_good etc.
+            raw_cond = s_dict.get("conditionType", "") 
+            # 簡易状態変換
+            if "new" in raw_cond.lower(): condition = "新品"
+            elif "very_good" in raw_cond.lower(): condition = "非常に良い"
+            elif "good" in raw_cond.lower(): condition = "良い"
+            elif "acceptable" in raw_cond.lower(): condition = "可"
+            elif "like_new" in raw_cond.lower() or "club_prime" in raw_cond.lower(): condition = "ほぼ新品"
+        
+        # 2. Offersからの情報抽出 (Price, SubCondition, ConditionNote)
+        offers = payload.get("offers", [])
+        price = 0
+        condition_note = ""
+        if offers:
+            offer = offers[0]
+            price_element = offer.get("price", {}).get("Amount", 0)
+            if not price_element: # Sometimes it's nested
+                # Fallback to check other fields if Amount is missing
+                pass 
+                
+            # AttributesにConditionNoteが格納されていることがあるのでAttributesも確認
+            
+        # 3. Attributesからの情報抽出
+        attributes = payload.get("attributes", {})
+        if "condition_note" in attributes:
+            cn = attributes["condition_note"]
+            if isinstance(cn, list) and len(cn) > 0:
+                condition_note = cn[0].get("value", "")
+            elif isinstance(cn, str):
+                condition_note = cn
+        
+        # 価格の取得補完 (Attriubtes内のpurchasable_offer)
+        if price == 0 and "purchasable_offer" in attributes:
+            po = attributes["purchasable_offer"]
+            if isinstance(po, list) and len(po) > 0:
+                price = po[0].get("our_price", [])[0].get("schedule", [])[0].get("value_with_tax", 0) 
+        
+        return {
+            "asin": asin,
+            "price": int(price) if price else 0,
+            "condition": condition if condition != "Unknown" else "良い",
+            "quantity": quantity,
+            "condition_note": condition_note
+        }
+    except Exception as e:
+        print(f"Listings API Error for {sku}: {e}")
+        return {"error": str(e)}
 
 # 国会図書館APIによる書籍情報取得
 def fetch_book_info_ndl(isbn):
@@ -333,14 +396,19 @@ if True:
                 if not input_sku:
                     st.error("既存SKUを入力してください")
                 else:
-                    with st.spinner("APIで逆引き・自社在庫情報を取得中..."):
-                        fetched_asin = get_asin_from_sku(input_sku)
-                        my_info = get_my_inventory_info(input_sku)
+                    with st.spinner("Amazon SP-APIから正確な庫内データ（数量・価格・状態・特記事項）を取得中..."):
+                        my_info = fetch_my_inventory_info(input_sku)
                         
-                        st.session_state["target_asin"] = fetched_asin
-                        st.session_state["my_price"] = my_info["price"]
-                        st.session_state["my_condition"] = my_info["condition"]
-                        st.session_state["trigger_fetch"] = True
+                        if "error" in my_info:
+                            st.error(f"Amazonから情報を読み取れませんでした ({my_info['error']})")
+                        else:
+                            st.session_state["target_asin"] = my_info["asin"]
+                            st.session_state["my_price"] = my_info["price"]
+                            st.session_state["my_condition"] = my_info["condition"]
+                            st.session_state["my_quantity"] = my_info["quantity"]
+                            st.session_state["my_condition_note"] = my_info["condition_note"]
+                            st.session_state["trigger_fetch"] = True
+                            st.success(f"✅ SKU: {input_sku} の情報をSP-APIから完璧に抽出しました！")
                     st.rerun()
             shelf_location = "既存"
             
@@ -401,7 +469,13 @@ if True:
         condition = st.selectbox("商品の状態 *必須", conditions, index=default_index)
         
     with col_qty:
-        quantity = st.number_input("数量 *必須", min_value=1, step=1, value=1)
+        default_qty = 1
+        if "既存" in listing_mode and "my_quantity" in st.session_state:
+            default_qty = int(st.session_state["my_quantity"])
+            if default_qty < 1: default_qty = 1 # エラー回避のため最低1
+        quantity = st.number_input("数量 *必須", min_value=1, step=1, value=default_qty)
+        if "既存" in listing_mode and "my_quantity" in st.session_state:
+            st.caption(f"📦 現在のAmazon在庫数（{st.session_state['my_quantity']}冊）を自動適用済")
         
     with col_price:
         # コンディションに応じたAmazon最安値を自動判定
@@ -531,7 +605,13 @@ if True:
     st.write("##### 📝 商品説明（プラットフォーム別）")
     st.info("共通の特記事項を入力すると、各プラットフォームのテンプレに自動反映されます。個別タブで手直しも可能です。")
     
-    common_note = st.text_area("共通の特記事項 (状態に関する補足など)", placeholder="例: カバー上部に軽微な折れがありますが、通読に支障はありません。")
+    default_note = ""
+    if "既存" in listing_mode and "my_condition_note" in st.session_state and st.session_state["my_condition_note"]:
+        default_note = st.session_state["my_condition_note"]
+        
+    common_note = st.text_area("共通の特記事項 (状態に関する補足など)", value=default_note, placeholder="例: カバー上部に軽微な折れがありますが、通読に支障はありません。")
+    if default_note:
+        st.caption("📝 Amazonでの現在の特記事項（コンディションノート）を自動適用済")
     
     tab_amz, tab_mer, tab_q10, tab_fur = st.tabs(["Amazon", "メルカリShops", "Qoo10", "日本の古本屋"])
 
