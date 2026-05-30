@@ -202,7 +202,7 @@ def calc_furuhon_price(base_price):
     return int(base_price * 1.0)
 
 # DB保存
-def save_to_db(sku, asin_isbn, shelf_location, base_price, condition, description, targets):
+def save_to_db(sku, asin_isbn, shelf_location, base_price, condition, description, targets, quantity=1):
     if not supabase:
         return False, "Supabaseに接続されていません。"
 
@@ -221,7 +221,8 @@ def save_to_db(sku, asin_isbn, shelf_location, base_price, condition, descriptio
         "amazon_status": amz_status,
         "mercari_status": mer_status,
         "qoo10_status": q10_status,
-        "furuhon_status": fur_status
+        "furuhon_status": fur_status,
+        "quantity": quantity
     }
 
     try:
@@ -388,7 +389,7 @@ if True:
         st.info("※既存Amazon在庫の場合、Amazonへの価格更新リクエスト(上限・下限含む)が行われます。")
         # TODO: ここに「Amazonから商品情報を取得する」ボタンなどのロジックを追加予定
         
-    col_price, col_cond, col_adult = st.columns([1, 1, 1])
+    col_price, col_cond, col_qty, col_adult = st.columns([1.5, 1.5, 1, 1])
     with col_cond:
         conditions = ["新品", "ほぼ新品", "非常に良い", "良い", "可", "全体的に状態が悪い"]
         
@@ -398,6 +399,9 @@ if True:
                 default_index = conditions.index(st.session_state["my_condition"])
                 
         condition = st.selectbox("商品の状態 *必須", conditions, index=default_index)
+        
+    with col_qty:
+        quantity = st.number_input("数量 *必須", min_value=1, step=1, value=1)
         
     with col_price:
         # コンディションに応じたAmazon最安値を自動判定
@@ -651,11 +655,11 @@ if submitted:
             'Qoo10': target_qoo10,
             'Furuhon': target_furuhon
         }
-        success, msg = save_to_db(final_sku, save_asin, shelf_location, base_price, condition, common_note, targets)
+        success, msg = save_to_db(final_sku, save_asin, shelf_location, base_price, condition, common_note, targets, quantity)
         if not success:
             st.error(msg)
         else:
-            st.success("✅ マスターデータベース(SQLite)への保存が完了しました。")
+            st.success("✅ Supabaseへの保存が完了しました。")
             
             # 画像の保存/処理状況のアナウンス
             if uploaded_images:
@@ -730,7 +734,7 @@ st.markdown("---")
 st.subheader("データベース登録状況 (最新10件)")
 if supabase:
     try:
-        response = supabase.table("listings").select("id, sku, asin_isbn, shelf_location, base_price, condition, amazon_status, created_at").order("id", desc=True).limit(10).execute()
+        response = supabase.table("listings").select("id, sku, asin_isbn, shelf_location, base_price, condition, quantity, amazon_status, created_at").order("id", desc=True).limit(10).execute()
         if response.data:
             df_db = pd.DataFrame(response.data)
             # created_at のフォーマット調整
