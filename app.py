@@ -26,6 +26,13 @@ st.markdown("""
         [data-testid="stSidebarNav"] {
             display: none;
         }
+        /* サイドバー上部の余白を狭くする */
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 2rem !important;
+        }
+        [data-testid="stSidebarUserContent"] {
+            padding-top: 0rem !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
