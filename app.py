@@ -34,6 +34,11 @@ st.markdown("""
             padding-top: 0rem !important;
             margin-top: -2rem !important;
         }
+        /* メイン画面上部の余白を削る */
+        .block-container {
+            padding-top: 1rem !important;
+            margin-top: 0rem !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
