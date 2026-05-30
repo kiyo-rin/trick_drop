@@ -13,7 +13,21 @@ from email.utils import parsedate_to_datetime
 from amazon_orders import render_amazon_orders_page
 
 # ページ設定
-st.set_page_config(page_title="TRICK DROP", page_icon="⚡️", layout="wide")
+st.set_page_config(
+    page_title="TRICK DROP", 
+    page_icon="⚡️", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# サイドバーのデフォルトのページナビゲーションを隠す
+st.markdown("""
+    <style>
+        [data-testid="stSidebarNav"] {
+            display: none;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # 未読メールを取得する関数
 @st.cache_data(ttl=300) # 5分間は結果をキャッシュして再読み込みを高速化
@@ -391,7 +405,7 @@ def get_recent_orders():
                                 
                         # ② メルカリShopsの注文判定
                         elif '【メルカリShops】' in subject:
-                            if ('発送' in subject or '購入' in subject) and 'メッセージ' not in subject:
+                            if '発送をお願いします' in subject and 'メッセージ' not in subject:
                                 if 'YG' not in body and '商品管理コード : YG' not in body:
                                     continue
                                     
