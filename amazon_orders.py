@@ -22,7 +22,7 @@ except ImportError:
         'seller_id': st.secrets.get("SP_API_SELLER_ID", "")
     }
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=30)
 def fetch_unshipped_orders():
     """SP-APIから未発送の注文を取得する"""
     try:
