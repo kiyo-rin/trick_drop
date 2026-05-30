@@ -20,42 +20,60 @@ except Exception as e:
     supabase = None
     st.error(f"Supabase connection error: {e}")
 
+SP_API_LOAD_ERROR = ""
 try:
     from sp_api.api import Products, ListingsItems, CatalogItems
     from sp_api.base import Marketplaces
     SP_API_AVAILABLE = True
-    
-    # Try fetching from st.secrets first
-    try:
-        SP_API_CONFIG = {
-            'refresh_token': st.secrets.get("SP_API_REFRESH_TOKEN", ""),
-            'lwa_app_id': st.secrets.get("SP_API_LWA_APP_ID", ""),
-            'lwa_client_secret': st.secrets.get("SP_API_LWA_CLIENT_SECRET", ""),
-            'aws_access_key': st.secrets.get("SP_API_AWS_ACCESS_KEY", ""),
-            'aws_secret_key': st.secrets.get("SP_API_AWS_SECRET_KEY", ""),
-            'role_arn': st.secrets.get("SP_API_ROLE_ARN", "")
-        }
-        SELLER_ID = st.secrets.get("SP_API_SELLER_ID", "")
-    except Exception:
-        SP_API_CONFIG = {}
-        SELLER_ID = ""
-        
-    # If not found or empty, fallback to local python module
-    if not SP_API_CONFIG.get("refresh_token"):
-        import sys
-        import os
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../yagi-scraper')))
-        try:
-            from exports.amazon_sp_api_config import SP_API_CONFIG as LocalConfig
-            SP_API_CONFIG = LocalConfig
-            SELLER_ID = SP_API_CONFIG.get("seller_id", "")
-        except ImportError:
-            pass
-
-except ImportError:
+except Exception as e:
     SP_API_AVAILABLE = False
+    SP_API_LOAD_ERROR = str(e)
     SP_API_CONFIG = {}
     SELLER_ID = ""
+
+if SP_API_AVAILABLE:
+    def _get_sec(key):
+        try:
+            if key in st.secrets:
+                return str(st.secrets[key]).strip()
+            if key.lower() in st.secrets:
+                return str(st.secrets[key.lower()]).strip()
+            # Handle possible nested sections e.g. [SP_API]
+            if key.startswith("SP_API_"):
+                sub_key = key[7:]
+                if "SP_API" in st.secrets:
+                    if sub_key in st.secrets["SP_API"]:
+                        return str(st.secrets["SP_API"][sub_key]).strip()
+        except Exception:
+            pass
+        return str(os.environ.get(key, "")).strip()
+
+    try:
+        SP_API_CONFIG = {
+            'refresh_token': _get_sec("SP_API_REFRESH_TOKEN"),
+            'lwa_app_id': _get_sec("SP_API_LWA_APP_ID"),
+            'lwa_client_secret': _get_sec("SP_API_LWA_CLIENT_SECRET"),
+            'aws_access_key': _get_sec("SP_API_AWS_ACCESS_KEY"),
+            'aws_secret_key': _get_sec("SP_API_AWS_SECRET_KEY"),
+            'role_arn': _get_sec("SP_API_ROLE_ARN")
+        }
+        SELLER_ID = _get_sec("SP_API_SELLER_ID") or _get_sec("SELLER_ID")
+        
+        # 取得できていない場合はローカルファイルをフォールバックとして試す
+        if not SP_API_CONFIG.get("refresh_token"):
+            import sys
+            import os
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../yagi-scraper')))
+            try:
+                from exports.amazon_sp_api_config import SP_API_CONFIG as LocalConfig
+                SP_API_CONFIG = LocalConfig
+                SELLER_ID = SP_API_CONFIG.get("seller_id", "")
+            except ImportError:
+                pass
+    except Exception as e:
+        SP_API_CONFIG = {}
+        SELLER_ID = ""
+        SP_API_LOAD_ERROR = f"Config Error: {e}"
     
 st.set_page_config(page_title="TRICK SHOOTER", layout="wide")
 st.title("TRICK SHOOTER 🎯 - マルチ同時出品ツール")
@@ -79,8 +97,18 @@ def asin_to_isbn13(asin):
 
 # SKUを元にAmazon SP-APIから出品情報（ASIN, 価格, 状態, 数量, 特記事項など）を取得する
 def fetch_my_inventory_info(sku):
-    if not SP_API_AVAILABLE or not SELLER_ID:
-        return {"error": "SP-APIが設定されていません"}
+    if not SP_API_AVAILABLE:
+        return {"error": f"SP-APIモジュールがロードできませんでした: {SP_API_LOAD_ERROR}"}
+    
+    missing_keys = []
+    if not SELLER_ID:
+        missing_keys.append("SELLER_ID")
+    for k, v in SP_API_CONFIG.items():
+        if not v:
+            missing_keys.append(k)
+            
+    if missing_keys:
+        return {"error": f"SP-APIの認証情報が不足しています。Streamlit Secretsを確認してください (Missing: {', '.join(missing_keys)})"}
         
     try:
         # Listings_Items APIを使用して対象SKUの詳細を取得
