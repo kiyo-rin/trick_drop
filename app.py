@@ -197,7 +197,7 @@ if "page" in st.query_params:
     except ValueError:
         pass
 
-page = st.sidebar.radio("", pages, index=default_index)
+page = st.sidebar.radio("メニュー", pages, index=default_index, label_visibility="collapsed")
 
 # 選択されたページをURLパラメータに保存（リロード対策）
 st.query_params["page"] = page

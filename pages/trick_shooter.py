@@ -1,5 +1,4 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import os
 import datetime
@@ -7,6 +6,19 @@ import math
 import urllib.request
 import xml.etree.ElementTree as ET
 import re
+from supabase import create_client, Client
+
+@st.cache_resource
+def init_connection() -> Client:
+    url = st.secrets["supabase"]["url"]
+    key = st.secrets["supabase"]["key"]
+    return create_client(url, key)
+
+try:
+    supabase = init_connection()
+except Exception as e:
+    supabase = None
+    st.error(f"Supabase connection error: {e}")
 
 try:
     from sp_api.api import Products
@@ -20,46 +32,10 @@ st.set_page_config(page_title="TRICK SHOOTER", layout="wide")
 st.title("TRICK SHOOTER 🎯 - マルチ同時出品ツール")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "listings.db")
 EXPORT_DIR = os.path.join(BASE_DIR, "exports")
 
 # exportsディレクトリが存在しない場合は作成する
 os.makedirs(EXPORT_DIR, exist_ok=True)
-
-# DB初期化
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS listings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sku TEXT UNIQUE,
-            asin_isbn TEXT,
-            shelf_location TEXT,
-            base_price INTEGER,
-            condition TEXT,
-            description TEXT,
-            amazon_status TEXT,
-            mercari_status TEXT,
-            qoo10_status TEXT,
-            furuhon_status TEXT,
-            created_at TEXT
-        )
-    ''')
-    
-    # schema update (shelf_locationカラムが無ければ追加する)
-    try:
-        c.execute("ALTER TABLE listings ADD COLUMN shelf_location TEXT DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass # 既にカラムが存在する場合は無視
-        
-    conn.commit()
-    conn.close()
-
-# 初期化処理
-init_db()
-if not os.path.exists(EXPORT_DIR):
-    os.makedirs(EXPORT_DIR)
 
 # 国会図書館APIや紀伊國屋用に、10桁ASINを13桁ISBNに変換する
 def asin_to_isbn13(asin):
@@ -227,28 +203,35 @@ def calc_furuhon_price(base_price):
 
 # DB保存
 def save_to_db(sku, asin_isbn, shelf_location, base_price, condition, description, targets):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+    if not supabase:
+        return False, "Supabaseに接続されていません。"
+
     amz_status = 'Pending' if targets.get('Amazon', False) else 'Skipped'
     mer_status = 'Pending' if targets.get('Mercari', False) else 'Skipped'
     q10_status = 'Pending' if targets.get('Qoo10', False) else 'Skipped'
     fur_status = 'Pending' if targets.get('Furuhon', False) else 'Skipped'
 
+    data = {
+        "sku": sku,
+        "asin_isbn": asin_isbn,
+        "shelf_location": shelf_location,
+        "base_price": base_price,
+        "condition": condition,
+        "description": description,
+        "amazon_status": amz_status,
+        "mercari_status": mer_status,
+        "qoo10_status": q10_status,
+        "furuhon_status": fur_status
+    }
+
     try:
-        c.execute('''
-            INSERT INTO listings (
-                sku, asin_isbn, shelf_location, base_price, condition, description,
-                amazon_status, mercari_status, qoo10_status, furuhon_status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (sku, asin_isbn, shelf_location, base_price, condition, description, amz_status, mer_status, q10_status, fur_status, now))
-        conn.commit()
+        response = supabase.table("listings").insert(data).execute()
         return True, "DB保存成功"
-    except sqlite3.IntegrityError:
-        return False, f"SKU '{sku}' は既に存在します。"
-    finally:
-        conn.close()
+    except Exception as e:
+        error_msg = str(e)
+        if "duplicate key value violates unique constraint" in error_msg or "listings_sku_key" in error_msg:
+            return False, f"SKU '{sku}' は既に存在します。"
+        return False, f"DBエラー: {error_msg}"
 
 def export_amazon_tsv(sku, price, condition, date_str):
     filepath = os.path.join(EXPORT_DIR, f"amazon_{date_str}.tsv")
@@ -745,8 +728,15 @@ if submitted:
 
 st.markdown("---")
 st.subheader("データベース登録状況 (最新10件)")
-if os.path.exists(DB_PATH):
-    conn = sqlite3.connect(DB_PATH)
-    df_db = pd.read_sql_query("SELECT id, sku, asin_isbn, shelf_location, base_price, condition, amazon_status, created_at FROM listings ORDER BY id DESC LIMIT 10", conn)
-    conn.close()
-    st.dataframe(df_db, use_container_width=True)
+if supabase:
+    try:
+        response = supabase.table("listings").select("id, sku, asin_isbn, shelf_location, base_price, condition, amazon_status, created_at").order("id", desc=True).limit(10).execute()
+        if response.data:
+            df_db = pd.DataFrame(response.data)
+            # created_at のフォーマット調整
+            df_db['created_at'] = pd.to_datetime(df_db['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
+            st.dataframe(df_db, use_container_width=True)
+        else:
+            st.info("登録されたデータはまだありません。")
+    except Exception as e:
+        st.error(f"データ取得エラー: {e}")
