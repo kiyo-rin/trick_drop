@@ -41,7 +41,8 @@ st.markdown("""
         /* メイン画面上部の余白を削る */
         .block-container {
             padding-top: 0rem !important;
-            margin-top: 0rem !important;
+            margin-top: -4rem !important; /* マイナス余白でタイトルを限界まで押し上げ */
+            padding-bottom: 0rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
