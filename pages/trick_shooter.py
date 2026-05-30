@@ -19,8 +19,12 @@ except ImportError:
 st.set_page_config(page_title="TRICK SHOOTER", layout="wide")
 st.title("TRICK SHOOTER 🎯 - マルチ同時出品ツール")
 
-DB_PATH = "trick_drop/listings.db"
-EXPORT_DIR = "trick_drop/exports"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "listings.db")
+EXPORT_DIR = os.path.join(BASE_DIR, "exports")
+
+# exportsディレクトリが存在しない場合は作成する
+os.makedirs(EXPORT_DIR, exist_ok=True)
 
 # DB初期化
 def init_db():
