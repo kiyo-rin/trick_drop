@@ -1001,15 +1001,14 @@ elif page == "📦 未発送の注文 (Amazon)":
     render_amazon_orders_page()
 
 elif page == "🎯 TRICK SHOOTER (出品ツール)":
-    st.markdown('<div class="main-header">🎯 TRICK SHOOTER (出品ツール)</div>', unsafe_allow_html=True)
-    
-    st.warning("🚨 **現在Amazonの審査待ちです** (SP-API: Direct-to-Consumer Shipping)")
-    st.markdown("""
-    現在、Amazonに出品ツール用の権限申請を行い、審査を待っている状態です。  
-    稼働できるようになるまでこのメニューからはアクセスを制限していますが、ローカルでの画面確認用として下のボタンから別ページで開くことができます。
-    """)
-    st.page_link("pages/trick_shooter.py", label="開発中のTRICK SHOOTER画面を見る", icon="🎯")
-
+    # 審査待ち制限を解除し、直接画面を埋め込み表示
+    target_path = os.path.join(os.path.dirname(__file__), "pages", "trick_shooter.py")
+    with open(target_path, encoding="utf-8") as f:
+        code = f.read()
+        # st.set_page_configが重複するとエラーになるため無効化
+        code = code.replace('st.set_page_config', '# st.set_page_config')
+        # 別ファイルとして定義されている変数との名前衝突を防ぎつつ実行
+        exec(code, globals().copy())
 elif page == "⚡ TRICK RADAR":
     st.markdown('<div class="main-header">⚡ TRICK RADAR</div>', unsafe_allow_html=True)
     st.markdown("ローカルで稼働しているTRICK RADAR（リサーチ連携）にアクセスします。")
