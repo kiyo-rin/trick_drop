@@ -24,15 +24,34 @@ try:
     from sp_api.api import Products, ListingsItems, CatalogItems
     from sp_api.base import Marketplaces
     SP_API_AVAILABLE = True
-    SP_API_CONFIG = {
-        'refresh_token': st.secrets.get("SP_API_REFRESH_TOKEN", ""),
-        'lwa_app_id': st.secrets.get("SP_API_LWA_APP_ID", ""),
-        'lwa_client_secret': st.secrets.get("SP_API_LWA_CLIENT_SECRET", ""),
-        'aws_access_key': st.secrets.get("SP_API_AWS_ACCESS_KEY", ""),
-        'aws_secret_key': st.secrets.get("SP_API_AWS_SECRET_KEY", ""),
-        'role_arn': st.secrets.get("SP_API_ROLE_ARN", "")
-    }
-    SELLER_ID = st.secrets.get("SP_API_SELLER_ID", "")
+    
+    # Try fetching from st.secrets first
+    try:
+        SP_API_CONFIG = {
+            'refresh_token': st.secrets.get("SP_API_REFRESH_TOKEN", ""),
+            'lwa_app_id': st.secrets.get("SP_API_LWA_APP_ID", ""),
+            'lwa_client_secret': st.secrets.get("SP_API_LWA_CLIENT_SECRET", ""),
+            'aws_access_key': st.secrets.get("SP_API_AWS_ACCESS_KEY", ""),
+            'aws_secret_key': st.secrets.get("SP_API_AWS_SECRET_KEY", ""),
+            'role_arn': st.secrets.get("SP_API_ROLE_ARN", "")
+        }
+        SELLER_ID = st.secrets.get("SP_API_SELLER_ID", "")
+    except Exception:
+        SP_API_CONFIG = {}
+        SELLER_ID = ""
+        
+    # If not found or empty, fallback to local python module
+    if not SP_API_CONFIG.get("refresh_token"):
+        import sys
+        import os
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../yagi-scraper')))
+        try:
+            from exports.amazon_sp_api_config import SP_API_CONFIG as LocalConfig
+            SP_API_CONFIG = LocalConfig
+            SELLER_ID = SP_API_CONFIG.get("seller_id", "")
+        except ImportError:
+            pass
+
 except ImportError:
     SP_API_AVAILABLE = False
     SP_API_CONFIG = {}
