@@ -4,6 +4,7 @@ import datetime
 
 # ページ内独立実行用（app.pyからexecされた場合はスキップされる）
 try:
+    pass
     st.set_page_config(page_title="テンプレート管理", page_icon="⚙️", layout="wide")
 except:
     pass
