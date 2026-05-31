@@ -66,8 +66,18 @@ st.markdown("""
         /* メイン画面上部の余白を削る */
         .block-container {
             padding-top: 0rem !important;
-            margin-top: -1.5rem !important; /* もう少し下げる */
+            margin-top: -1.5rem !important; /* PC用 */
             padding-bottom: 0rem !important;
+        }
+        /* スマホ向けのレイアウト微調整（メニューボタンとコンテンツの被りを防ぐ） */
+        @media (max-width: 768px) {
+            .block-container {
+                margin-top: 3.5rem !important; /* スマホでは司令室などのコンテンツを少し下げる */
+            }
+            header[data-testid="stHeader"] {
+                background: white !important; /* メニューボタンを見やすくするために背景を白に */
+                border-bottom: 1px solid #eee;
+            }
         }
     </style>
 """, unsafe_allow_html=True)
