@@ -27,6 +27,30 @@ st.markdown("""
         [data-testid="stSidebarNav"] {
             display: none;
         }
+        /* モバイル環境でハンバーガーメニュー（>）を目立たせる */
+        @media (max-width: 768px) {
+            [data-testid="collapsedControl"] {
+                background-color: #ff4b4b !important;
+                border-radius: 50% !important;
+                color: white !important;
+                width: 48px !important;
+                height: 48px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+                top: 10px !important;
+                left: 10px !important;
+            }
+            [data-testid="collapsedControl"] svg {
+                width: 28px !important;
+                height: 28px !important;
+                fill: white !important;
+            }
+            .stApp > header {
+                background-color: transparent !important;
+            }
+        }
         /* サイドバー上部の余白を限界まで削る */
         section[data-testid="stSidebar"] > div {
             padding-top: 0rem !important;
@@ -1039,6 +1063,13 @@ elif page == "⚙️ テンプレート管理":
 elif page == "⚡ TRICK RADAR":
     import requests
     import math
+
+    # スマホ向け：サイドバーを開くよう促す案内
+    st.markdown("""
+    <div style="background-color: #ffeaea; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em; display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-weight: bold; color: #d32f2f;">左上の 「 ＞ 」 ボタンからメニューが開けます⚡️</span>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown('<div class="main-header">⚡ TRICK RADAR</div>', unsafe_allow_html=True)
     st.markdown("バーコードリーダーでISBNをスキャンしてください。")
