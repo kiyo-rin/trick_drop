@@ -6,6 +6,7 @@ import math
 import urllib.request
 import xml.etree.ElementTree as ET
 import re
+import google.generativeai as genai
 from supabase import create_client, Client
 
 @st.cache_resource
@@ -146,15 +147,20 @@ def fetch_my_inventory_info(sku):
                 condition_note = cn[0].get("value", "")
             elif isinstance(cn, str):
                 condition_note = cn
-        
+                
         # 価格の取得補完 (Attriubtes内のpurchasable_offer)
         if price == 0 and "purchasable_offer" in attributes:
             po = attributes["purchasable_offer"]
             if isinstance(po, list) and len(po) > 0:
                 price = po[0].get("our_price", [])[0].get("schedule", [])[0].get("value_with_tax", 0) 
         
+        product_type = summaries[0].get("productType", "ABIS_BOOK") if summaries else "ABIS_BOOK"
+        item_name = summaries[0].get("itemName", "商品名未登録") if summaries else "商品名未登録"
+        
         return {
             "asin": asin,
+            "productType": product_type,
+            "itemName": item_name,
             "price": int(price) if price else 0,
             "condition": condition if condition != "Unknown" else "良い",
             "quantity": quantity,
@@ -175,6 +181,92 @@ def fetch_my_inventory_info(sku):
         return {"error": error_msg}
 
 # 国会図書館APIによる書籍情報取得
+# Gemini APIの初期設定
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+def generate_platform_descriptions(title, condition, condition_note):
+    """
+    Gemini 1.5 Proを用いて3販路用に説明文を同時リライト
+    """
+    if "GEMINI_API_KEY" not in st.secrets:
+        # APIキーがない場合はフォールバックとして元の特記事項を返す
+        return condition_note, condition_note, condition_note
+        
+    model = genai.GenerativeModel('gemini-1.5-pro')
+    prompt = f"""
+    以下の商品情報をもとに、各プラットフォームに最適化された3パターンの商品説明文言を作成し、指定フォーマットで出力してください。
+    【商品名】: {title}
+    【状態】: {condition}
+    【特記事項 (元の状態説明)】: {condition_note}
+    
+    遵守事項:
+    1. [MERCARI] のセクションには「丁寧なトーン」「状態への事前承諾を促す文言」「検索用ハッシュタグ(#〜)」を含める。
+    2. [QOO10] のセクションには「スマホで見やすい箇条書きレイアウト」にする。
+    3. [FURUHON] のセクションには「一切の装飾を排除した、事務的でドライな事実（状態）のみ」を記載する。
+    
+    出力フォーマット:
+    [MERCARI]
+    (ここにメルカリ用テキストを記載)
+    [QOO10]
+    (ここにQoo10用テキストを記載)
+    [FURUHON]
+    (ここに古本屋用テキストを記載)
+    """
+    try:
+        response = model.generate_content(prompt)
+        text = response.text
+        
+        mercari_match = re.search(r'\[MERCARI\](.*?)(?=\n\[QOO10\]|$)', text, re.DOTALL)
+        qoo10_match = re.search(r'\[QOO10\](.*?)(?=\n\[FURUHON\]|$)', text, re.DOTALL)
+        furuhon_match = re.search(r'\[FURUHON\](.*?)$', text, re.DOTALL)
+        
+        desc_mer = mercari_match.group(1).strip() if mercari_match else condition_note
+        desc_q10 = qoo10_match.group(1).strip() if qoo10_match else condition_note
+        desc_fur = furuhon_match.group(1).strip() if furuhon_match else condition_note
+        
+        return desc_mer, desc_q10, desc_fur
+    except Exception as e:
+        print(f"Gemini API Error: {e}")
+        return condition_note, condition_note, condition_note
+
+def update_amazon_price_bounds_via_spapi(sku, product_type, current_price, config, seller_id):
+    """
+    SP-API (PATCH) を用いて自陣Amazonの下限/上限価格を更新する
+    下限: current_price / 上限: current_price * 2
+    """
+    if not config or not seller_id:
+        return {"error": "SP-API設定なし"}
+        
+    try:
+        api = ListingsItems(credentials=config, marketplace=Marketplaces.JP)
+        
+        min_price = current_price
+        max_price = current_price * 2
+        
+        body = {
+            "productType": product_type,
+            "patches": [
+                {
+                    "op": "replace",
+                    "path": "/attributes/purchasable_offer",
+                    "value": [{
+                        "marketplace_id": Marketplaces.JP.marketplace_id,
+                        "currency": "JPY",
+                        "our_price": [{"schedule": [{"value_with_tax": current_price}]}],
+                        "minimum_seller_allowed_price": [{"schedule": [{"value_with_tax": min_price}]}],
+                        "maximum_seller_allowed_price": [{"schedule": [{"value_with_tax": max_price}]}]
+                    }]
+                }
+            ]
+        }
+        res = api.patch_listings_item(seller_id, sku, marketplaceIds=[Marketplaces.JP.marketplace_id], body=body)
+        return {"success": True, "payload": res.payload}
+    except Exception as e:
+        error_msg = str(e)
+        if hasattr(e, 'payload'):
+            error_msg = f"{e} - {e.payload}"
+        return {"error": error_msg}
 def fetch_book_info_ndl(isbn):
     isbn_clean = asin_to_isbn13(isbn)
     if not isbn_clean: return None
@@ -283,7 +375,8 @@ def fetch_amazon_prices(asin_or_isbn):
         print("SP-API Pricing Error:", e)
     return prices
 
-import requests
+import re
+import google.generativeai as genaiquests
 KEEPA_API_KEY = "2qcjs5p89b8ipqiofp65858a7q2702cnv6opo733rfsdbah6rb11o8bj9p7d0dm9"
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -455,8 +548,37 @@ if True:
                             st.session_state["my_condition"] = my_info["condition"]
                             st.session_state["my_quantity"] = my_info["quantity"]
                             st.session_state["my_condition_note"] = my_info["condition_note"]
+                            
+                            current_price = my_info["price"]
+                            prod_type = my_info.get("productType", "ABIS_BOOK")
+                            item_name = my_info.get("itemName", "商品名未登録")
+                            
+                            # 2. Amazon自陣の価格自動設定（上限・下限を更新）
+                            if current_price > 0:
+                                update_res = update_amazon_price_bounds_via_spapi(input_sku, prod_type, current_price, SP_API_CONFIG, SELLER_ID)
+                                if "error" in update_res:
+                                    st.warning(f"⚠️ 自陣価格上限・下限の更新に失敗しました: {update_res['error']}")
+                                else:
+                                    st.success("✅ 自陣Amazonの販売価格の下限・上限設定を完了しました")
+
+                                # 3. 他販路向け最適価格算出（Session State経由で連動描画用）
+                                st.session_state["calc_mercari"] = calc_mercari_price(current_price)
+                                st.session_state["calc_qoo10"] = calc_qoo10_price(current_price)
+                                st.session_state["calc_furuhon"] = calc_furuhon_price(current_price)
+                            
+                            # 4. Gemini 1.5 Proによるプラットフォーム別リライト
+                            mer_desc, q10_desc, fur_desc = generate_platform_descriptions(
+                                title=item_name, 
+                                condition=my_info["condition"], 
+                                condition_note=my_info["condition_note"]
+                            )
+                            
+                            st.session_state["desc_mer_gemini"] = mer_desc
+                            st.session_state["desc_q10_gemini"] = q10_desc
+                            st.session_state["desc_fur_gemini"] = fur_desc
+                            
                             st.session_state["trigger_fetch"] = True
-                            st.success(f"✅ SKU: {input_sku} の情報をSP-APIから完璧に抽出しました！")
+                            st.success(f"✅ SKU: {input_sku} の情報をSP-APIから完璧に抽出＆AIリライトしました！")
                             st.rerun()
             shelf_location = "既存"
             
@@ -722,24 +844,27 @@ if True:
 検索用：
 古本 中古本 本 古書"""
 
-        mercari_tpl = f"""{info_header.strip()}
-
-{desc_block_common}{condition_block}
-
-------------------------------
-【梱包・発送】
-
-防水梱包にて発送します。
-発送方法：メルカリBiz配送
-発送目安：4〜7日以内"""
+        if st.session_state.get("desc_mer_gemini"):
+            mercari_tpl = st.session_state["desc_mer_gemini"]
+        else:
+            mercari_tpl = f"""{info_header.strip()}\n\n{desc_block_common}{condition_block}\n\n------------------------------\n【梱包・発送】\n\n防水梱包にて発送します。\n発送方法：メルカリBiz配送\n発送目安：4〜7日以内"""
+        
         desc_mer = st.text_area("メルカリShops用", value=mercari_tpl, height=250, key=f"mer_{dynamic_key_suffix}")
         
     with tab_q10:
-        q10_tpl = f"{info_header}{desc_block_common}【コンディション: {condition}】\n{common_note}"
+        if st.session_state.get("desc_q10_gemini"):
+            q10_tpl = st.session_state["desc_q10_gemini"]
+        else:
+            q10_tpl = f"{info_header}{desc_block_common}【コンディション: {condition}】\n{common_note}"
+            
         desc_q10 = st.text_area("Qoo10用", value=q10_tpl, height=250, key=f"q10_{dynamic_key_suffix}")
         
     with tab_fur:
-        fur_tpl = f"{info_header}{desc_block_common}{condition} / {common_note}"
+        if st.session_state.get("desc_fur_gemini"):
+            fur_tpl = st.session_state["desc_fur_gemini"]
+        else:
+            fur_tpl = f"{info_header}{desc_block_common}{condition} / {common_note}"
+            
         desc_fur = st.text_area("日本の古本屋用", value=fur_tpl, height=250, key=f"fur_{dynamic_key_suffix}")
     
     st.markdown("---")
