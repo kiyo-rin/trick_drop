@@ -1148,7 +1148,8 @@ elif page == "⚡ TRICK RADAR":
 
     # フォームを利用することで、バーコードリーダー(Enterキー)での自動送信＆リセットを確実にする
     with st.form(key="radar_scan_form", clear_on_submit=True):
-        isbn = st.text_input("ISBN", placeholder="スキャンしてください", label_visibility="collapsed", autocomplete="off")
+        # type="password" にすることでiOS(iPhone)やSafariのオートコンプリート・自動修正・予測変換が強制オフになり、バーコードの高速入力ダブりバグを防ぐ
+        isbn = st.text_input("ISBN", placeholder="スキャンしてください", label_visibility="collapsed", autocomplete="off", type="password")
         submitted = st.form_submit_button("検索（またはリーダーのEnter）", use_container_width=True)
 
     if submitted and isbn:
