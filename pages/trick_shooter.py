@@ -32,32 +32,16 @@ except Exception as e:
     SELLER_ID = ""
 
 if SP_API_AVAILABLE:
-    def _get_sec(key):
-        try:
-            if key in st.secrets:
-                return str(st.secrets[key]).strip()
-            if key.lower() in st.secrets:
-                return str(st.secrets[key.lower()]).strip()
-            # Handle possible nested sections e.g. [SP_API]
-            if key.startswith("SP_API_"):
-                sub_key = key[7:]
-                if "SP_API" in st.secrets:
-                    if sub_key in st.secrets["SP_API"]:
-                        return str(st.secrets["SP_API"][sub_key]).strip()
-        except Exception:
-            pass
-        return str(os.environ.get(key, "")).strip()
-
     try:
         SP_API_CONFIG = {
-            'refresh_token': _get_sec("SP_API_REFRESH_TOKEN"),
-            'lwa_app_id': _get_sec("SP_API_LWA_APP_ID"),
-            'lwa_client_secret': _get_sec("SP_API_LWA_CLIENT_SECRET"),
-            'aws_access_key': _get_sec("SP_API_AWS_ACCESS_KEY"),
-            'aws_secret_key': _get_sec("SP_API_AWS_SECRET_KEY"),
-            'role_arn': _get_sec("SP_API_ROLE_ARN")
+            'refresh_token': st.secrets.get("SP_API_REFRESH_TOKEN", ""),
+            'lwa_app_id': st.secrets.get("SP_API_LWA_APP_ID", ""),
+            'lwa_client_secret': st.secrets.get("SP_API_LWA_CLIENT_SECRET", ""),
+            'aws_access_key': st.secrets.get("SP_API_AWS_ACCESS_KEY", ""),
+            'aws_secret_key': st.secrets.get("SP_API_AWS_SECRET_KEY", ""),
+            'role_arn': st.secrets.get("SP_API_ROLE_ARN", "")
         }
-        SELLER_ID = _get_sec("SP_API_SELLER_ID") or _get_sec("SELLER_ID")
+        SELLER_ID = st.secrets.get("SP_API_SELLER_ID", "")
         
         # 取得できていない場合はローカルファイルをフォールバックとして試す
         if not SP_API_CONFIG.get("refresh_token"):
