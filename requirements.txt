@@ -4,3 +4,5 @@ plotly
 numpy
 python-amazon-sp-api
 supabase
+google-generativeai
+google-generativeai
