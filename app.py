@@ -78,6 +78,11 @@ st.markdown("""
                 background: white !important; /* メニューボタンを見やすくするために背景を白に */
                 border-bottom: 1px solid #eee;
             }
+            /* スマホでサイドバー内の「<<」ボタンにコンテンツが被って押せなくなる現象を解消 */
+            [data-testid="stSidebarUserContent"] {
+                margin-top: 0rem !important;
+                padding-top: 1rem !important;
+            }
         }
     </style>
 """, unsafe_allow_html=True)
