@@ -1079,8 +1079,7 @@ elif page == "⚡ TRICK RADAR":
     import requests
     import math
 
-    st.markdown('<div class="main-header">⚡ TRICK RADAR</div>', unsafe_allow_html=True)
-    st.markdown("バーコードリーダーでISBNをスキャンしてください。")
+    st.markdown('<div class="main-header" style="margin-bottom: 5px; padding-bottom: 5px;">⚡ TRICK RADAR</div>', unsafe_allow_html=True)
 
     # APIキーの取得（Secretsからのセキュアな読み込み）
     try:
@@ -1095,45 +1094,45 @@ elif page == "⚡ TRICK RADAR":
         .radar-success {
             background-color: #4CAF50;
             color: white;
-            padding: 30px 10px;
+            padding: 15px 10px;
             border-radius: 12px;
             text-align: center;
-            font-size: 8vw;
+            font-size: 6vw;
             font-weight: 900;
-            line-height: 1.4;
+            line-height: 1.3;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
-            margin-top: 20px;
+            text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
+            margin-top: 10px;
         }
         .radar-error {
             background-color: #e53935;
             color: white;
-            padding: 30px 10px;
+            padding: 15px 10px;
             border-radius: 12px;
             text-align: center;
-            font-size: 8vw;
+            font-size: 6vw;
             font-weight: 900;
-            line-height: 1.4;
+            line-height: 1.3;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
-            margin-top: 20px;
+            text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
+            margin-top: 10px;
         }
         .radar-drops {
-            font-size: 6vw;
+            font-size: 4vw;
             font-weight: bold;
-            margin-top: 15px;
+            margin-top: 10px;
             background-color: rgba(0,0,0,0.2);
             padding: 5px;
             border-radius: 5px;
         }
         @media (min-width: 600px) {
-            .radar-success, .radar-error { font-size: 40px; }
-            .radar-drops { font-size: 24px; }
+            .radar-success, .radar-error { font-size: 32px; }
+            .radar-drops { font-size: 20px; }
         }
-        /* スキャン入力欄を大きくする設定 */
+        /* スキャン入力欄をスマートにする設定 */
         [data-testid="stTextInput"] input {
-            font-size: 24px !important;
-            padding: 15px !important;
+            font-size: 20px !important;
+            padding: 10px !important;
             text-align: center;
         }
         </style>
