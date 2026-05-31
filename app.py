@@ -1170,6 +1170,7 @@ elif page == "⚡ TRICK RADAR":
             "domain": 5, # Amazon.co.jp
             "code": isbn.strip(),
             "stats": 90,
+            "offers": 20,
             "history": 0
         }
         
@@ -1192,29 +1193,75 @@ elif page == "⚡ TRICK RADAR":
                         product = res_data["products"][0]
                         stats = product.get("stats", {})
                         
+                        sales_rank_drops_90 = stats.get("salesRankDrops90", "不明")
+                        
+                        # --- コンディション別価格取得 (Offers API) ---
+                        offers = product.get("offers", [])
+                        condition_prices = {1: [], 2: [], 3: [], 4: [], 5: []}
+                        current_keepa_minute = int((time.time() - 1293840000) / 60)
+                        
+                        for offer in offers:
+                            cond = offer.get("condition", 0)
+                            if cond in condition_prices:
+                                csv = offer.get("offerCSV", [])
+                                last_seen = offer.get("lastSeen", 0)
+                                # 過去14日以内に生存確認されたオファーを対象とする
+                                if current_keepa_minute - last_seen < 20160 and len(csv) >= 3:
+                                    price = csv[-2]
+                                    shipping = csv[-1]
+                                    if price >= 0 and shipping >= 0:
+                                        condition_prices[cond].append(price + shipping)
+                                        
+                        # 最安値をコンディションごとに算出
+                        low_prices = {}
+                        for cond, prices in condition_prices.items():
+                            if prices:
+                                low_prices[cond] = min(prices)
+                        
+                        # Offers APIが取れなかったときのためのフォールバック処理
                         current_stats = stats.get("current", [])
                         amz_price = current_stats[0] if len(current_stats) > 0 and current_stats[0] >= 0 else -1
                         new_price = current_stats[1] if len(current_stats) > 1 and current_stats[1] >= 0 else -1
-                        used_price = current_stats[2] if len(current_stats) > 2 and current_stats[2] >= 0 else -1
-                        sales_rank_drops_90 = stats.get("salesRankDrops90", "不明")
+                        used_price_fallback = current_stats[2] if len(current_stats) > 2 and current_stats[2] >= 0 else -1
+                        
+                        if 1 not in low_prices and new_price > 0: low_prices[1] = new_price
+                        if amz_price > 0 and (1 not in low_prices or amz_price < low_prices[1]): low_prices[1] = amz_price
+
+                        cond_display_map = {
+                            1: "新品",
+                            2: "ほぼ新品",
+                            3: "非常に良い",
+                            4: "良い",
+                            5: "可"
+                        }
                         
                         min_profit = 300 # ボスの最低希望利益
 
                         # 基準価格の決定 (高い方を採用、または新品を優先)
-                        # バーゲンブック等の新品仕入れがメインなので、Amazon定価や新品最安値を強く意識する
+                        # 一番高く売れるコンディションを抽出
                         target_price = -1
-                        condition = "不明"
+                        condition_label = "不明"
 
-                        if new_price > 0:
-                            target_price = new_price
-                            condition = "新品"
-                        elif amz_price > 0:
-                            target_price = amz_price
-                            condition = "Amazon直販"
-                        elif used_price > 0:
-                            target_price = used_price
-                            condition = "中古"
+                        # 存在するコンディションの中から一番高い価格を基準にする(せどり前提)
+                        for c_id in sorted(low_prices.keys()):
+                            if low_prices[c_id] > 0 and low_prices[c_id] > target_price:
+                                target_price = low_prices[c_id]
+                                condition_label = cond_display_map[c_id]
                         
+                        # 全滅の場合は単なる「中古最低価格」をフォールバックとして利用
+                        if target_price == -1 and used_price_fallback > 0:
+                            target_price = used_price_fallback
+                            condition_label = "中古(不明)"
+                            
+                        # === HTMLレンダリング === 
+                        # 全コンディションの相場一覧テキストを生成
+                        price_list_html = ""
+                        for c_id in [1, 2, 3, 4, 5]:
+                            p = low_prices.get(c_id, -1)
+                            label = cond_display_map[c_id]
+                            price_str = f"{p}円" if p > 0 else "出品なし"
+                            price_list_html += f'<div style="font-size: 0.7em; color: #555; text-align: left; margin-left: 20px;">・{label}: <b>{price_str}</b></div>'
+
                         if target_price == -1:
                             st.markdown(f'''
                                 <div class="radar-error">
@@ -1230,15 +1277,23 @@ elif page == "⚡ TRICK RADAR":
                                 st.markdown(f'''
                                     <div class="radar-error">
                                         仕入れ対象外<br>
-                                        <span style="font-size: 0.5em; display:block; margin-top:5px;">現在({condition})の相場: {target_price}円では利益が出ません</span>
+                                        <span style="font-size: 0.5em; display:block; margin-top:5px; margin-bottom:5px;">現在({condition_label})の相場: {target_price}円では利益が出ません</span>
+                                        <div style="background-color: #fff; padding: 5px; border-radius: 5px; margin: 10px 10px;">
+                                            <div style="font-size: 0.6em; color: #888; text-align: left; margin-bottom: 5px;">現在のコンディション別最安値:</div>
+                                            {price_list_html}
+                                        </div>
                                         <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
                                     </div>
                                 ''', unsafe_allow_html=True)
                             else:
                                 st.markdown(f'''
                                     <div class="radar-success">
-                                        <span style="font-size: 0.6em; color: #fff;">【{condition}】相場: {target_price}円基準</span><br>
+                                        <span style="font-size: 0.6em; color: #fff;">利益が最大になる【{condition_label}】相場: {target_price}円を基準に算出</span><br>
                                         {max_purchase_price}円以下<br>なら買え！
+                                        <div style="background-color: rgba(255,255,255,0.9); padding: 5px; border-radius: 5px; margin: 15px 10px 5px 10px;">
+                                            <div style="font-size: 0.6em; color: #888; text-align: left; margin-bottom: 5px;">現在のコンディション別最安値:</div>
+                                            {price_list_html}
+                                        </div>
                                         <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
                                     </div>
                                 ''', unsafe_allow_html=True)
