@@ -191,6 +191,7 @@ def generate_platform_descriptions(title, condition, condition_note):
     """
     if "GEMINI_API_KEY" not in st.secrets:
         # APIキーがない場合はフォールバックとして元の特記事項を返す
+        st.error("🚨【エラー】GEMINI_API_KEY が設定されていません。AIリライトをスキップし、元のAmazon特記事項をそのまま適用します。")
         return condition_note, condition_note, condition_note
         
     model = genai.GenerativeModel('gemini-1.5-pro')
@@ -200,10 +201,14 @@ def generate_platform_descriptions(title, condition, condition_note):
     【状態】: {condition}
     【特記事項 (元の状態説明)】: {condition_note}
     
+    【重要：必ず守ること】
+    元の特記事項に記載のある「★追跡サービスで確認ができる配送方法で発送いたします。」や「FBA」「プライム」といった、Amazon特有の無関係な発送方法・定型文は必ず削除してください。
+    それぞれの販路に合わせた適切な文章に再構築してください。
+
     遵守事項:
     1. [MERCARI] のセクションには「丁寧なトーン」「状態への事前承諾を促す文言」「検索用ハッシュタグ(#〜)」を含める。
     2. [QOO10] のセクションには「スマホで見やすい箇条書きレイアウト」にする。
-    3. [FURUHON] のセクションには「一切の装飾を排除した、事務的でドライな事実（状態）のみ」を記載する。
+    3. [FURUHON] のセクションには「一切の装飾や挨拶を排除した、事務的でドライな事実（状態の詳細）のみ」を記載する。
     
     出力フォーマット:
     [MERCARI]
@@ -228,6 +233,7 @@ def generate_platform_descriptions(title, condition, condition_note):
         return desc_mer, desc_q10, desc_fur
     except Exception as e:
         print(f"Gemini API Error: {e}")
+        st.error(f"🚨【AIリライトエラー】Gemini API実行中にエラーが発生しました。元の特記事項を適用します。詳細: {e}")
         return condition_note, condition_note, condition_note
 
 def update_amazon_price_bounds_via_spapi(sku, product_type, current_price, config, seller_id):
