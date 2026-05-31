@@ -186,6 +186,7 @@ pages = [
     "📚 YGシステム (自動受注リスト)",
     "📦 未発送の注文 (Amazon)",
     "🎯 TRICK SHOOTER (出品ツール)",
+    "⚙️ テンプレート管理",
     "⚡ TRICK RADAR",
 ]
 
@@ -1009,6 +1010,12 @@ elif page == "🎯 TRICK SHOOTER (出品ツール)":
         # st.set_page_configが重複するとエラーになるため無効化
         code = code.replace('st.set_page_config', '# st.set_page_config')
         # 別ファイルとして定義されている変数との名前衝突を防ぎつつ実行
+        exec(code, globals().copy())
+elif page == "⚙️ テンプレート管理":
+    target_path = os.path.join(os.path.dirname(__file__), "pages", "template_manager.py")
+    with open(target_path, encoding="utf-8") as f:
+        code = f.read()
+        code = code.replace('st.set_page_config', '# st.set_page_config')
         exec(code, globals().copy())
 elif page == "⚡ TRICK RADAR":
     st.markdown('<div class="main-header">⚡ TRICK RADAR</div>', unsafe_allow_html=True)

@@ -188,6 +188,7 @@ if "GEMINI_API_KEY" in st.secrets:
 def generate_platform_descriptions(title, condition, condition_note):
     """
     Gemini 1.5 Proを用いて3販路用に説明文を同時リライト
+    Supabaseのtemplatesテーブルから該当のフォーマットを取得してAIに指示
     """
     if "GEMINI_API_KEY" not in st.secrets:
         # APIキーがない場合はフォールバックとして元の特記事項を返す
@@ -195,8 +196,26 @@ def generate_platform_descriptions(title, condition, condition_note):
         return condition_note, condition_note, condition_note
         
     model = genai.GenerativeModel('gemini-1.5-pro-latest')
+    
+    # Supabaseからテンプレートを取得
+    template_dict = {}
+    try:
+        res = supabase.table("templates").select("*").eq("condition", condition).execute()
+        if hasattr(res, 'data') and res.data:
+            for t in res.data:
+                template_dict[t["platform"]] = t["template_text"]
+    except Exception as e:
+        print(f"Supabase template fetch error: {e}")
+        pass
+        
+    # 各販路のベーステンプレート（DBになければハードコードのデフォルト）
+    base_mer = template_dict.get("Mercari", "【商品名】: {title}\\n【状態】: {condition}\\n\\n{condition_note}\\n\\nご質問がありましたらお気軽にお声掛けください。\\n#古本 #中古本")
+    base_q10 = template_dict.get("Qoo10", "■ 商品名\\n{title}\\n\\n■ コンディション\\n{condition}\\n\\n■ 状態詳細\\n{condition_note}")
+    base_fur = template_dict.get("Furuhon", "{title} / 状態: {condition} / {condition_note}")
+
     prompt = f"""
-    以下の商品情報をもとに、各プラットフォームに最適化された3パターンの商品説明文言を作成し、指定フォーマットで出力してください。
+    あなたは出品用の説明文を作成するAIプロンプターです。
+    以下の商品情報をもとに、各プラットフォームに最適化された3パターンの商品説明文言を、後述の【指定テンプレート】の形式に従って出力してください。
     【商品名】: {title}
     【状態】: {condition}
     【特記事項 (元の状態説明)】: {condition_note}
@@ -204,19 +223,29 @@ def generate_platform_descriptions(title, condition, condition_note):
     【重要：必ず守ること】
     元の特記事項に記載のある「★追跡サービスで確認ができる配送方法で発送いたします。」や「FBA」「プライム」といった、Amazon特有の無関係な発送方法・定型文は必ず削除してください。
     それぞれの販路に合わせた適切な文章に再構築してください。
-
-    遵守事項:
-    1. [MERCARI] のセクションには「丁寧なトーン」「状態への事前承諾を促す文言」「検索用ハッシュタグ(#〜)」を含める。
-    2. [QOO10] のセクションには「スマホで見やすい箇条書きレイアウト」にする。
-    3. [FURUHON] のセクションには「一切の装飾や挨拶を排除した、事務的でドライな事実（状態の詳細）のみ」を記載する。
     
-    出力フォーマット:
+    【指定テンプレート】
+    以下のテンプレートの変数部分({{title}}, {{condition}}, {{condition_note}})を上記の商品情報で埋め、自然な文章になるよう調整して完成させてください。
+    
+    --- MERCARI 用テンプレート ---
+    {base_mer}
+    -----------------------------
+    
+    --- QOO10 用テンプレート ---
+    {base_q10}
+    ---------------------------
+    
+    --- FURUHON 用テンプレート ---
+    {base_fur}
+    -----------------------------
+
+    出力フォーマット（必ず以下のタグで囲んで出力してください）:
     [MERCARI]
-    (ここにメルカリ用テキストを記載)
+    (ここに完成したメルカリ用テキストを記載)
     [QOO10]
-    (ここにQoo10用テキストを記載)
+    (ここに完成したQoo10用テキストを記載)
     [FURUHON]
-    (ここに古本屋用テキストを記載)
+    (ここに完成した古本屋用テキストを記載)
     """
     try:
         response = model.generate_content(prompt)
