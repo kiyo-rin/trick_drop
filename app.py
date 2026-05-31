@@ -1149,10 +1149,28 @@ elif page == "⚡ TRICK RADAR":
     # フォームを利用することで、バーコードリーダー(Enterキー)での自動送信＆リセットを確実にする
     with st.form(key="radar_scan_form", clear_on_submit=True):
         # type="password" にすることでiOS(iPhone)やSafariのオートコンプリート・自動修正・予測変換が強制オフになり、バーコードの高速入力ダブりバグを防ぐ
-        isbn = st.text_input("ISBN", placeholder="スキャンしてください", label_visibility="collapsed", autocomplete="off", type="password")
+        raw_isbn = st.text_input("ISBN", placeholder="スキャンしてください", label_visibility="collapsed", autocomplete="off", type="password")
         submitted = st.form_submit_button("検索（またはリーダーのEnter）", use_container_width=True)
 
-    if submitted and isbn:
+    def fix_react_barcode_lag(barcode: str) -> str:
+        """スマホのReact入力ラグで文字が「97848... + 7848...」と連なった重複文字列から本来の13桁を復元する"""
+        barcode = barcode.strip()
+        if len(barcode) <= 13:
+            return barcode
+        # 1箇所の分裂合体を想定した復元アルゴリズム
+        for i in range(1, len(barcode)):
+            A = barcode[:i]
+            B = barcode[i:]
+            for j in range(min(len(A), len(B)), 0, -1):
+                if A[-j:] == B[:j]:
+                    cand = A + B[j:]
+                    if len(cand) == 13 and cand.startswith(("978", "979")):
+                        return cand
+        return barcode
+
+    if submitted and raw_isbn:
+        isbn = fix_react_barcode_lag(raw_isbn)
+        
         url = "https://api.keepa.com/product"
         params = {
             "key": keepa_api_key,
