@@ -59,9 +59,9 @@ st.markdown("""
             padding-top: 0rem !important;
             margin-top: -4rem !important; /* -2remから-4remに拡大して限界突破 */
         }
-        /* ストリームリット特有の透明なヘッダー領域も消すことで全体をさらに上へ */
+        /* ストリームリットのヘッダー領域（ここにスマホ用メニューボタンが存在する） */
         header[data-testid="stHeader"] {
-            display: none !important;
+            background: transparent !important;
         }
         /* メイン画面上部の余白を削る */
         .block-container {
