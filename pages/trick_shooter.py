@@ -194,7 +194,7 @@ def generate_platform_descriptions(title, condition, condition_note):
         st.error("🚨【エラー】GEMINI_API_KEY が設定されていません。AIリライトをスキップし、元のAmazon特記事項をそのまま適用します。")
         return condition_note, condition_note, condition_note
         
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    model = genai.GenerativeModel('gemini-1.5-pro-latest')
     prompt = f"""
     以下の商品情報をもとに、各プラットフォームに最適化された3パターンの商品説明文言を作成し、指定フォーマットで出力してください。
     【商品名】: {title}
@@ -554,25 +554,18 @@ if True:
                             st.session_state["my_condition"] = my_info["condition"]
                             st.session_state["my_quantity"] = my_info["quantity"]
                             st.session_state["my_condition_note"] = my_info["condition_note"]
+                            st.session_state["my_product_type"] = my_info.get("productType", "ABIS_BOOK")
                             
                             current_price = my_info["price"]
-                            prod_type = my_info.get("productType", "ABIS_BOOK")
                             item_name = my_info.get("itemName", "商品名未登録")
-                            
-                            # 2. Amazon自陣の価格自動設定（上限・下限を更新）
-                            if current_price > 0:
-                                update_res = update_amazon_price_bounds_via_spapi(input_sku, prod_type, current_price, SP_API_CONFIG, SELLER_ID)
-                                if "error" in update_res:
-                                    st.warning(f"⚠️ 自陣価格上限・下限の更新に失敗しました: {update_res['error']}")
-                                else:
-                                    st.success("✅ 自陣Amazonの販売価格の下限・上限設定を完了しました")
 
-                                # 3. 他販路向け最適価格算出（Session State経由で連動描画用）
+                            # 2. 他販路向け最適価格算出（Session State経由で連動描画用）
+                            if current_price > 0:
                                 st.session_state["calc_mercari"] = calc_mercari_price(current_price)
                                 st.session_state["calc_qoo10"] = calc_qoo10_price(current_price)
                                 st.session_state["calc_furuhon"] = calc_furuhon_price(current_price)
                             
-                            # 4. Gemini 1.5 Proによるプラットフォーム別リライト
+                            # 3. Gemini 1.5 Proによるプラットフォーム別リライト
                             mer_desc, q10_desc, fur_desc = generate_platform_descriptions(
                                 title=item_name, 
                                 condition=my_info["condition"], 
@@ -774,8 +767,7 @@ if True:
                 # エラーハンドリング（すべて-1や-2の場合）
                 if drops_90 in (-1, -2) and buybox in (-1, -2) and avg90_new in (-1, -2) and avg90_used in (-1, -2):
                     st.info("💡 Keepa上の過去データなし（Amazonの現在価格を優先します）")
-            else:
-                st.warning("⚠️ Keepaデータの取得・解析に失敗しました。")
+            # KeepaAPIキー未設定時などは警告を出さず無視する
             
     st.markdown("---")
     st.write("##### 📝 商品説明（プラットフォーム別）")
@@ -955,6 +947,13 @@ if submitted:
                 amz_file, p, p_min, p_max = export_amazon_tsv(final_sku, base_price, condition, run_date)
                 st.success(f"📦 [Amazon] CSVを出力しました: `{os.path.basename(amz_file)}` (本体 {p}円 / 下限: {p_min} / 上限: {p_max})")
                 summary_data.append({"販路": "Amazon (価格更新)", "計算価格": f"¥{amz_calc}", "状態": "✅ CSV追記"})
+                
+                prod_type = st.session_state.get("my_product_type", "ABIS_BOOK")
+                update_res = update_amazon_price_bounds_via_spapi(final_sku, prod_type, base_price, SP_API_CONFIG, SELLER_ID)
+                if "error" in update_res:
+                    st.warning(f"⚠️ 自陣価格上限・下限のAPI更新に失敗しました: {update_res['error']}")
+                else:
+                    st.success("✅ 自陣Amazonの販売価格の下限・上限設定をAPI経由で即時完了しました")
                 
             # メルカリShops
             mer_calc = calc_mercari_price(base_price)
