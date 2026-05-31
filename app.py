@@ -78,6 +78,16 @@ def get_unread_count(account_type="muumuu"):
         else:
             return None, "未対応のアカウントタイプ"
         
+        # ダミー設定や日本語文字（非ASCII）による接続エラー(socket.gaierror, UnicodeEncodeError)を回避
+        if "テスト" in user or "テスト" in password or "test" in server.lower():
+            return None, "連携未設定（設定をお待ちしています）"
+        try:
+            user.encode('ascii')
+            password.encode('ascii')
+            server.encode('ascii')
+        except UnicodeEncodeError:
+            return None, "無効な文字が含まれています（連携未設定）"
+
         # IMAPサーバーに接続
         mail = imaplib.IMAP4_SSL(server)
         mail.login(user, password)
@@ -259,10 +269,19 @@ months = [f"2026-{m:02d}" for m in range(1, 6)]
 def get_recent_orders():
     orders = []
     try:
-        user = st.secrets["email"]["gmail_kiyota_user"]
-        password = st.secrets["email"]["gmail_kiyota_pass"]
+        user = st.secrets.get("email", {}).get("gmail_kiyota_user", "テスト用")
+        password = st.secrets.get("email", {}).get("gmail_kiyota_pass", "テスト用")
         server = "imap.gmail.com"
         
+        # ダミー設定や日本語文字（非ASCII）による接続エラーを回避
+        if "テスト" in user or "テスト" in password:
+            return []  # 未設定時は空リストを返してエラーを回避
+        try:
+            user.encode('ascii')
+            password.encode('ascii')
+        except UnicodeEncodeError:
+            return []
+
         mail = imaplib.IMAP4_SSL(server)
         mail.login(user, password)
         mail.select("inbox")
@@ -1018,10 +1037,136 @@ elif page == "⚙️ テンプレート管理":
         code = code.replace('st.set_page_config', '# st.set_page_config')
         exec(code, globals().copy())
 elif page == "⚡ TRICK RADAR":
+    import requests
+    import math
+
     st.markdown('<div class="main-header">⚡ TRICK RADAR</div>', unsafe_allow_html=True)
-    st.markdown("ローカルで稼働しているTRICK RADAR（リサーチ連携）にアクセスします。")
-    st.link_button("外部ウィンドウでTRICK RADARを開く", "https://metal-months-film.loca.lt", use_container_width=True)
-    
-    # iframe内に埋め込み表示
-    st.components.v1.iframe("https://metal-months-film.loca.lt", height=800, scrolling=True)
+    st.markdown("バーコードリーダーでISBNをスキャンしてください。")
+
+    # APIキーの取得（Secretsからのセキュアな読み込み）
+    try:
+        keepa_api_key = st.secrets["KEEPA_API_KEY"]
+    except KeyError:
+        st.error("⚠️ `st.secrets['KEEPA_API_KEY']` が設定されていません。Streamlit CloudのSecretsまたはローカルの`.streamlit/secrets.toml`に設定を追加してください。")
+        st.stop()
+
+    # スマホUI向けカスタムCSS（巨大な結果表示かつトランクルームでの視認性向上）
+    st.markdown("""
+        <style>
+        .radar-success {
+            background-color: #4CAF50;
+            color: white;
+            padding: 30px 10px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 8vw;
+            font-weight: 900;
+            line-height: 1.4;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+            margin-top: 20px;
+        }
+        .radar-error {
+            background-color: #e53935;
+            color: white;
+            padding: 30px 10px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 8vw;
+            font-weight: 900;
+            line-height: 1.4;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+            margin-top: 20px;
+        }
+        .radar-drops {
+            font-size: 6vw;
+            font-weight: bold;
+            margin-top: 15px;
+            background-color: rgba(0,0,0,0.2);
+            padding: 5px;
+            border-radius: 5px;
+        }
+        @media (min-width: 600px) {
+            .radar-success, .radar-error { font-size: 40px; }
+            .radar-drops { font-size: 24px; }
+        }
+        /* スキャン入力欄を大きくする設定 */
+        [data-testid="stTextInput"] input {
+            font-size: 24px !important;
+            padding: 15px !important;
+            text-align: center;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # フォームを利用することで、バーコードリーダー(Enterキー)での自動送信＆リセットを確実にする
+    with st.form(key="radar_scan_form", clear_on_submit=True):
+        isbn = st.text_input("ISBN", placeholder="スキャンしてください", label_visibility="collapsed", autocomplete="off")
+        submitted = st.form_submit_button("検索（またはリーダーのEnter）", use_container_width=True)
+
+    if submitted and isbn:
+        url = "https://api.keepa.com/product"
+        params = {
+            "key": keepa_api_key,
+            "domain": 5, # Amazon.co.jp
+            "code": isbn.strip(),
+            "stats": 90,
+            "history": 0
+        }
+        
+        with st.spinner("Keepa検索中..."):
+            try:
+                response = requests.get(url, params=params, timeout=10)
+                
+                # HTTPエラーのハンドリング
+                if response.status_code != 200:
+                    st.markdown('<div class="radar-error">API通信エラー<br>時間をおいて再試行してください</div>', unsafe_allow_html=True)
+                else:
+                    res_data = response.json()
+                    
+                    if "error" in res_data:
+                        error_msg = res_data['error'].get('message', '不明なエラー')
+                        st.markdown(f'<div class="radar-error">APIエラー<br><span style="font-size: 0.5em;">{error_msg}</span></div>', unsafe_allow_html=True)
+                    elif "products" not in res_data or not res_data["products"]:
+                        st.markdown('<div class="radar-error">商品が見つかりませんでした</div>', unsafe_allow_html=True)
+                    else:
+                        product = res_data["products"][0]
+                        stats = product.get("stats", {})
+                        
+                        current_stats = stats.get("current", [])
+                        used_price = current_stats[2] if len(current_stats) > 2 else -1
+                        sales_rank_drops_90 = stats.get("salesRankDrops90", "不明")
+                        
+                        min_profit = 300 # ボスの最低希望利益
+                        
+                        if used_price == -1:
+                            st.markdown(f'''
+                                <div class="radar-error">
+                                    在庫なし / 価格データなし
+                                    <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
+                                </div>
+                            ''', unsafe_allow_html=True)
+                        else:
+                            # 上限仕入れ値の計算
+                            max_purchase_price = math.floor(used_price - (used_price * 0.15) - 80 - 200 - min_profit)
+                            
+                            if max_purchase_price <= 0:
+                                st.markdown(f'''
+                                    <div class="radar-error">
+                                        ゴミです。<br>仕入れ対象外
+                                        <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                            else:
+                                st.markdown(f'''
+                                    <div class="radar-success">
+                                        {max_purchase_price}円以下<br>なら買え！
+                                        <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                                
+            except Exception as e:
+                st.markdown('<div class="radar-error">システムエラーが発生しました</div>', unsafe_allow_html=True)
+
 
