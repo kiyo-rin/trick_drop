@@ -1079,13 +1079,6 @@ elif page == "⚡ TRICK RADAR":
     import requests
     import math
 
-    # スマホ向け：サイドバーを開くよう促す案内
-    st.markdown("""
-    <div style="background-color: #ffeaea; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em; display: flex; align-items: center; justify-content: space-between;">
-        <span style="font-weight: bold; color: #d32f2f;">左上の 「 ＞ 」 ボタンからメニューが開けます⚡️</span>
-    </div>
-    """, unsafe_allow_html=True)
-
     st.markdown('<div class="main-header">⚡ TRICK RADAR</div>', unsafe_allow_html=True)
     st.markdown("バーコードリーダーでISBNをスキャンしてください。")
 
@@ -1200,32 +1193,51 @@ elif page == "⚡ TRICK RADAR":
                         stats = product.get("stats", {})
                         
                         current_stats = stats.get("current", [])
-                        used_price = current_stats[2] if len(current_stats) > 2 else -1
+                        amz_price = current_stats[0] if len(current_stats) > 0 and current_stats[0] >= 0 else -1
+                        new_price = current_stats[1] if len(current_stats) > 1 and current_stats[1] >= 0 else -1
+                        used_price = current_stats[2] if len(current_stats) > 2 and current_stats[2] >= 0 else -1
                         sales_rank_drops_90 = stats.get("salesRankDrops90", "不明")
                         
                         min_profit = 300 # ボスの最低希望利益
+
+                        # 基準価格の決定 (高い方を採用、または新品を優先)
+                        # バーゲンブック等の新品仕入れがメインなので、Amazon定価や新品最安値を強く意識する
+                        target_price = -1
+                        condition = "不明"
+
+                        if new_price > 0:
+                            target_price = new_price
+                            condition = "新品"
+                        elif amz_price > 0:
+                            target_price = amz_price
+                            condition = "Amazon直販"
+                        elif used_price > 0:
+                            target_price = used_price
+                            condition = "中古"
                         
-                        if used_price == -1:
+                        if target_price == -1:
                             st.markdown(f'''
                                 <div class="radar-error">
-                                    在庫なし / 価格データなし
+                                    現在、価格データなし
                                     <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                         else:
-                            # 上限仕入れ値の計算
-                            max_purchase_price = math.floor(used_price - (used_price * 0.15) - 80 - 200 - min_profit)
+                            # 上限仕入れ値の計算 (販売価格 - 15%手数料 - 梱包補財80円 - 送料200円 - 最低利益300円)
+                            max_purchase_price = math.floor(target_price - (target_price * 0.15) - 80 - 200 - min_profit)
                             
                             if max_purchase_price <= 0:
                                 st.markdown(f'''
                                     <div class="radar-error">
-                                        ゴミです。<br>仕入れ対象外
+                                        仕入れ対象外<br>
+                                        <span style="font-size: 0.5em; display:block; margin-top:5px;">現在({condition})の相場: {target_price}円では利益が出ません</span>
                                         <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
                                     </div>
                                 ''', unsafe_allow_html=True)
                             else:
                                 st.markdown(f'''
                                     <div class="radar-success">
+                                        <span style="font-size: 0.6em; color: #fff;">【{condition}】相場: {target_price}円基準</span><br>
                                         {max_purchase_price}円以下<br>なら買え！
                                         <div class="radar-drops">直近90日間の売れ行き：{sales_rank_drops_90}回</div>
                                     </div>
